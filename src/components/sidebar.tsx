@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { 
   LayoutDashboard, 
@@ -11,10 +11,13 @@ import {
   Receipt, 
   Menu, 
   X,
-  TrendingUp
+  TrendingUp,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { logout } from "@/services/auth-actions";
+import { toast } from "sonner";
 
 const navItems = [
   {
@@ -36,9 +39,25 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Signed out successfully.");
+        router.push("/login");
+        router.refresh();
+      }
+    } catch {
+      toast.error("Failed to sign out.");
+    }
+  };
 
   return (
     <>
@@ -97,16 +116,23 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="border-t border-stone-200 pt-4 mt-auto">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-xs font-semibold text-white">
+        <div className="border-t border-stone-200 pt-4 mt-auto space-y-2">
+          <div className="flex items-center gap-3 px-3 py-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
               A
             </div>
-            <div className="overflow-hidden">
+            <div className="overflow-hidden flex-1">
               <p className="text-sm font-medium text-stone-900 truncate">Admin User</p>
               <p className="text-xs text-stone-500 truncate">admin@expenseflow.com</p>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
     </>

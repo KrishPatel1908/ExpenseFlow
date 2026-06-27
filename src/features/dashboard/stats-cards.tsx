@@ -27,7 +27,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       title: "Total Customers",
       value: stats.totalCustomers.toString(),
       icon: Users,
-      iconColor: "text-indigo-600 bg-indigo-50",
+      iconColor: "text-sky-600 bg-sky-50",
     },
     {
       title: "Monthly Budget",
@@ -59,7 +59,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       {cardItems.map((item, index) => {
         const Icon = item.icon;
         return (
-          <Card key={index} className="flex items-center justify-between p-6 border border-slate-200 bg-white shadow-xs">
+          <Card key={index} className="flex flex-row items-center justify-between p-6 border border-slate-200 bg-white shadow-xs">
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-500">{item.title}</p>
               <h3 className={cn("text-2xl font-bold tracking-tight", item.valueColor || "text-slate-900")}>

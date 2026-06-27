@@ -56,7 +56,7 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                     </td>
                     <td className="px-4 py-3">
                       {expense.category ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
                           <Tag className="h-3 w-3" />
                           {expense.category}
                         </span>

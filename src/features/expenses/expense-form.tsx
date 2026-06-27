@@ -115,7 +115,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
             <select
               id="customerId"
               {...register("customerId")}
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">-- Select Customer --</option>
               {customers.map((c) => (
@@ -137,7 +137,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
                 step="0.01"
                 placeholder="e.g. 2500"
                 {...register("amount", { valueAsNumber: true })}
-                className="w-full focus-visible:ring-indigo-500"
+                className="w-full focus-visible:ring-slate-950"
               />
               {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
             </div>
@@ -149,7 +149,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
                 id="expenseDate"
                 type="date"
                 {...register("expenseDate")}
-                className="w-full focus-visible:ring-indigo-500"
+                className="w-full focus-visible:ring-slate-950"
               />
               {errors.expenseDate && <p className="text-xs text-red-500">{errors.expenseDate.message}</p>}
             </div>
@@ -162,7 +162,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
               id="category"
               placeholder="e.g. Server Hosting, Office Supplies"
               {...register("category")}
-              className="w-full focus-visible:ring-indigo-500"
+              className="w-full focus-visible:ring-slate-950"
             />
             {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
           </div>
@@ -175,7 +175,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
               rows={3}
               placeholder="e.g. Monthly Vercel/Supabase hosting costs..."
               {...register("description")}
-              className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
             />
             {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
           </div>
@@ -192,7 +192,7 @@ export function ExpenseForm({ isOpen, onOpenChange, customers, initialData, onSu
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+              className="bg-slate-950 hover:bg-slate-900 text-white font-medium"
             >
               {isSubmitting ? "Saving..." : initialData ? "Update Expense" : "Add Expense"}
             </Button>

@@ -106,7 +106,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
               id="name"
               placeholder="e.g. John Doe"
               {...register("name")}
-              className="w-full focus-visible:ring-indigo-500"
+              className="w-full focus-visible:ring-slate-950"
             />
             {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
           </div>
@@ -117,7 +117,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
               id="phone"
               placeholder="e.g. 9876543210"
               {...register("phone")}
-              className="w-full focus-visible:ring-indigo-500"
+              className="w-full focus-visible:ring-slate-950"
             />
             {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
           </div>
@@ -131,7 +131,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
                 step="0.01"
                 placeholder="e.g. 10000"
                 {...register("monthlyBudget", { valueAsNumber: true })}
-                className="w-full focus-visible:ring-indigo-500"
+                className="w-full focus-visible:ring-slate-950"
               />
               {errors.monthlyBudget && <p className="text-xs text-red-500">{errors.monthlyBudget.message}</p>}
             </div>
@@ -144,7 +144,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
                 step="0.01"
                 placeholder="e.g. 120000"
                 {...register("yearlyBudget", { valueAsNumber: true })}
-                className="w-full focus-visible:ring-indigo-500"
+                className="w-full focus-visible:ring-slate-950"
               />
               {errors.yearlyBudget && <p className="text-xs text-red-500">{errors.yearlyBudget.message}</p>}
             </div>
@@ -157,7 +157,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
               rows={3}
               placeholder="Add any additional details..."
               {...register("notes")}
-              className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
             />
             {errors.notes && <p className="text-xs text-red-500">{errors.notes.message}</p>}
           </div>
@@ -174,7 +174,7 @@ export function CustomerForm({ isOpen, onOpenChange, initialData, onSuccess }: C
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+              className="bg-slate-950 hover:bg-slate-900 text-white font-medium"
             >
               {isSubmitting ? "Saving..." : initialData ? "Update Customer" : "Add Customer"}
             </Button>

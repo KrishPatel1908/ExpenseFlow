@@ -46,7 +46,7 @@ export function AnalyticsCharts({
     {
       name: "Budget",
       amount: totalMonthlyBudget,
-      fill: "#4f46e5", // Indigo-600
+      fill: "#0ea5e9", // Sky-500
     },
     {
       name: "Expense",
@@ -140,7 +140,7 @@ export function AnalyticsCharts({
                 <Line 
                   type="monotone" 
                   dataKey="amount" 
-                  stroke="#4f46e5" // Indigo-600
+                  stroke="#0ea5e9" // Sky-500
                   strokeWidth={2.5}
                   dot={{ r: 4, strokeWidth: 2, fill: "#ffffff" }}
                   activeDot={{ r: 6 }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit2, Trash2, Calendar, Tag, User, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Calendar, Tag, User, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getExpenses, deleteExpense } from "@/services/expense-actions";
@@ -91,6 +91,33 @@ export default function ExpensesPage() {
     }).format(parseFloat(value));
   };
 
+  const handleExportCSV = () => {
+    const headers = ["Customer", "Amount (₹)", "Category", "Description", "Date"];
+    const rows = expenses.map((expense) => [
+      expense.customerName,
+      expense.amount.toString(),
+      expense.category || "Uncategorized",
+      expense.description || "",
+      format(expense.expenseDate, "yyyy-MM-dd"),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `expenses-export-${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Expenses exported successfully.");
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -99,13 +126,24 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Expenses</h1>
           <p className="text-slate-500 mt-1">Record and track individual customer expenses.</p>
         </div>
-        <Button 
-          onClick={handleAddClick}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium self-start sm:self-auto gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Expense</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          <Button 
+            onClick={handleExportCSV}
+            variant="outline"
+            className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2"
+            disabled={expenses.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            <span>Export CSV</span>
+          </Button>
+          <Button 
+            onClick={handleAddClick}
+            className="bg-slate-950 hover:bg-slate-900 text-white font-medium gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Expense</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -114,7 +152,7 @@ export default function ExpensesPage() {
           <select
             value={selectedCustomerId}
             onChange={(e) => setSelectedCustomerId(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-indigo-500"
+            className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-slate-950"
           >
             <option value="">All Customers</option>
             {customers.map((c) => (
@@ -131,7 +169,7 @@ export default function ExpensesPage() {
         <div className="overflow-x-auto">
           {loading && expenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-slate-900" />
               <p className="text-sm">Loading expenses...</p>
             </div>
           ) : expenses.length === 0 ? (
@@ -167,7 +205,7 @@ export default function ExpensesPage() {
                     </td>
                     <td className="px-6 py-4 text-slate-500">
                       {expense.category ? (
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
                           <Tag className="h-3 w-3" />
                           <span>{expense.category}</span>
                         </div>
@@ -190,7 +228,7 @@ export default function ExpensesPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditClick(expense)}
-                          className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                          className="h-8 w-8 text-slate-500 hover:text-slate-950 hover:bg-slate-100"
                         >
                           <Edit2 className="h-4 w-4" />
                           <span className="sr-only">Edit</span>

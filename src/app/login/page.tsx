@@ -53,7 +53,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo and Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-950 text-white shadow-xs">
             <TrendingUp className="h-6 w-6" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-stone-900">ExpenseFlow</h1>
@@ -73,7 +73,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="admin@expenseflow.com"
                   {...register("email")}
-                  className="pl-10 w-full focus-visible:ring-indigo-500 border-stone-200"
+                  className="pl-10 w-full focus-visible:ring-slate-950 border-stone-200"
                   disabled={loading}
                 />
               </div>
@@ -90,7 +90,7 @@ export default function LoginPage() {
                   type="password"
                   placeholder="••••••••"
                   {...register("password")}
-                  className="pl-10 w-full focus-visible:ring-indigo-500 border-stone-200"
+                  className="pl-10 w-full focus-visible:ring-slate-950 border-stone-200"
                   disabled={loading}
                 />
               </div>
@@ -101,7 +101,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium mt-2 gap-2"
+              className="w-full bg-slate-950 hover:bg-slate-900 text-white font-medium mt-2 gap-2"
             >
               {loading ? (
                 <>

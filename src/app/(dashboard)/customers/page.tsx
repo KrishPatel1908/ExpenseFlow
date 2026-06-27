@@ -95,7 +95,7 @@ export default function CustomersPage() {
         </div>
         <Button 
           onClick={handleAddClick}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium self-start sm:self-auto gap-2"
+          className="bg-slate-950 hover:bg-slate-900 text-white font-medium self-start sm:self-auto gap-2"
         >
           <Plus className="h-4 w-4" />
           <span>Add Customer</span>
@@ -109,7 +109,7 @@ export default function CustomersPage() {
           placeholder="Search by name or mobile number..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 w-full bg-white border-slate-200 focus-visible:ring-indigo-500"
+          className="pl-10 w-full bg-white border-slate-200 focus-visible:ring-slate-950"
         />
       </div>
 
@@ -117,7 +117,7 @@ export default function CustomersPage() {
       <div>
         {loading && customers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-slate-900" />
             <p className="text-sm">Loading customers...</p>
           </div>
         ) : customers.length === 0 ? (
@@ -125,79 +125,78 @@ export default function CustomersPage() {
             <p className="text-sm">No customers found.</p>
           </Card>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1">
             {customers.map((customer) => {
               const initials = customer.name.slice(0, 2).toUpperCase();
               return (
                 <Card
                   key={customer.id}
                   onClick={() => router.push(`/customers/${customer.id}`)}
-                  className="group relative flex flex-col justify-between border border-slate-200 bg-white p-6 shadow-xs rounded-xl hover:-translate-y-1.5 hover:shadow-md hover:border-indigo-200 transition-all duration-300 cursor-pointer"
+                  className="group relative grid grid-cols-1 md:grid-cols-12 items-center gap-4 border border-slate-200 bg-white p-6 shadow-xs rounded-xl hover:-translate-y-0.5 hover:shadow-xs hover:border-slate-350 transition-all duration-300 cursor-pointer overflow-hidden"
                 >
-                  <div className="space-y-4">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm">
-                          {initials}
-                        </div>
-                        <div className="overflow-hidden">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
-                            {customer.name}
-                          </h3>
-                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3 w-3" />
-                            <span>{customer.phone}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Card Actions */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditClick(customer);
-                          }}
-                          className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-slate-100"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(customer.id, customer.name);
-                          }}
-                          className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
+                  {/* Left Section: Avatar + Identity */}
+                  <div className="md:col-span-4 flex items-center gap-4 shrink-0">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white font-bold text-sm shadow-sm">
+                      {initials}
                     </div>
-
-                    {/* Budgets details */}
-                    <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-sm">
-                      <div className="space-y-0.5">
-                        <span className="text-xs text-slate-500 font-medium">Monthly Budget</span>
-                        <p className="font-semibold text-slate-900">{formatCurrency(customer.monthlyBudget)}</p>
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-xs text-slate-500 font-medium">Yearly Budget</span>
-                        <p className="font-semibold text-slate-900">{formatCurrency(customer.yearlyBudget)}</p>
-                      </div>
+                    <div className="overflow-hidden">
+                      <h3 className="font-bold text-slate-800 group-hover:text-slate-950 transition-colors text-base tracking-tight truncate">
+                        {customer.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1 font-medium">
+                        <Phone className="h-3 w-3 text-slate-400" />
+                        <span>{customer.phone}</span>
+                      </p>
                     </div>
                   </div>
 
-                  {/* Hover indicator link */}
-                  <div className="flex items-center justify-between text-xs text-slate-400 mt-6 group-hover:text-indigo-600 transition-colors">
-                    <span className="font-medium">View Analysis Dashboard</span>
-                    <ArrowRight className="h-3.5 w-3.5 translate-x-0 group-hover:translate-x-1 transition-transform" />
+                  {/* Middle Section: Budgets */}
+                  <div className="md:col-span-5 flex flex-row gap-6 my-2 md:my-0 text-xs justify-start md:justify-center">
+                    <div className="bg-emerald-50/50 border border-emerald-100/50 px-4 py-2.5 rounded-xl space-y-0.5 min-w-[130px]">
+                      <span className="text-[10px] text-emerald-800 font-extrabold uppercase tracking-wider">Monthly Budget</span>
+                      <p className="font-extrabold text-emerald-950 text-sm">{formatCurrency(customer.monthlyBudget)}</p>
+                    </div>
+                    <div className="bg-sky-50/50 border border-sky-100/50 px-4 py-2.5 rounded-xl space-y-0.5 min-w-[130px]">
+                      <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider">Yearly Budget</span>
+                      <p className="font-extrabold text-sky-950 text-sm">{formatCurrency(customer.yearlyBudget)}</p>
+                    </div>
+                  </div>
+
+                  {/* Right Section: View Link + Actions */}
+                  <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-5 border-t border-slate-100 md:border-t-0 pt-4 md:pt-0">
+                    {/* Hover Link */}
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 group-hover:text-slate-950 transition-colors">
+                      <span>View Analysis</span>
+                      <ArrowRight className="h-3.5 w-3.5 translate-x-0 group-hover:translate-x-1 transition-transform text-slate-400 group-hover:text-slate-950" />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(customer);
+                        }}
+                        className="h-8 w-8 text-slate-400 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(customer.id, customer.name);
+                        }}
+                        className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );

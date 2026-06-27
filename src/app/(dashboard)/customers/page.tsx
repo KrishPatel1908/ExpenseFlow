@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit2, Trash2, Phone, DollarSign, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Phone, Loader2, BarChart3 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -141,7 +142,12 @@ export default function CustomersPage() {
                     className="hover:bg-slate-50/50 transition-colors"
                   >
                     <td className="px-6 py-4 font-medium text-slate-900">
-                      {customer.name}
+                      <Link 
+                        href={`/customers/${customer.id}`}
+                        className="hover:text-indigo-600 hover:underline transition-colors"
+                      >
+                        {customer.name}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 text-slate-500">
                       <div className="flex items-center gap-2">
@@ -157,6 +163,17 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Link href={`/customers/${customer.id}`} passHref>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                            title="View Dashboard"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            <span className="sr-only">View Dashboard</span>
+                          </Button>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"

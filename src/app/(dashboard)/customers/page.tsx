@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit2, Trash2, Phone, Loader2, BarChart3 } from "lucide-react";
-import Link from "next/link";
+import { Plus, Search, Edit2, Trash2, Phone, Loader2, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,95 +113,98 @@ export default function CustomersPage() {
         />
       </div>
 
-      {/* Main Customers List */}
-      <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          {loading && customers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <p className="text-sm">Loading customers...</p>
-            </div>
-          ) : customers.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
-              <p className="text-sm">No customers found.</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Mobile Number</th>
-                  <th className="px-6 py-4 text-right">Monthly Budget</th>
-                  <th className="px-6 py-4 text-right">Yearly Budget</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-                {customers.map((customer) => (
-                  <tr 
-                    key={customer.id} 
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4 font-medium text-slate-900">
-                      <Link 
-                        href={`/customers/${customer.id}`}
-                        className="hover:text-indigo-600 hover:underline transition-colors"
-                      >
-                        {customer.name}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 text-slate-400" />
-                        <span>{customer.phone}</span>
+      {/* Main Customers List Grid */}
+      <div>
+        {loading && customers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            <p className="text-sm">Loading customers...</p>
+          </div>
+        ) : customers.length === 0 ? (
+          <Card className="border border-slate-200 bg-white text-center py-16 text-slate-500">
+            <p className="text-sm">No customers found.</p>
+          </Card>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {customers.map((customer) => {
+              const initials = customer.name.slice(0, 2).toUpperCase();
+              return (
+                <Card
+                  key={customer.id}
+                  onClick={() => router.push(`/customers/${customer.id}`)}
+                  className="group relative flex flex-col justify-between border border-slate-200 bg-white p-6 shadow-xs rounded-xl hover:-translate-y-1.5 hover:shadow-md hover:border-indigo-200 transition-all duration-300 cursor-pointer"
+                >
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm">
+                          {initials}
+                        </div>
+                        <div className="overflow-hidden">
+                          <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                            {customer.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3" />
+                            <span>{customer.phone}</span>
+                          </p>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-900">
-                      {formatCurrency(customer.monthlyBudget)}
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-900">
-                      {formatCurrency(customer.yearlyBudget)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/customers/${customer.id}`} passHref>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-                            title="View Dashboard"
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                            <span className="sr-only">View Dashboard</span>
-                          </Button>
-                        </Link>
+
+                      {/* Card Actions */}
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEditClick(customer)}
-                          className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(customer);
+                          }}
+                          className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-slate-100"
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-3.5 w-3.5" />
                           <span className="sr-only">Edit</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(customer.id, customer.name)}
-                          className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(customer.id, customer.name);
+                          }}
+                          className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                           <span className="sr-only">Delete</span>
                         </Button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </Card>
+                    </div>
+
+                    {/* Budgets details */}
+                    <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-sm">
+                      <div className="space-y-0.5">
+                        <span className="text-xs text-slate-500 font-medium">Monthly Budget</span>
+                        <p className="font-semibold text-slate-900">{formatCurrency(customer.monthlyBudget)}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs text-slate-500 font-medium">Yearly Budget</span>
+                        <p className="font-semibold text-slate-900">{formatCurrency(customer.yearlyBudget)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hover indicator link */}
+                  <div className="flex items-center justify-between text-xs text-slate-400 mt-6 group-hover:text-indigo-600 transition-colors">
+                    <span className="font-medium">View Analysis Dashboard</span>
+                    <ArrowRight className="h-3.5 w-3.5 translate-x-0 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Customer Form Modal */}
       <CustomerForm

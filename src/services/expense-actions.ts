@@ -1,130 +1,194 @@
 "use server";
 
 import { db } from "@db/index";
-import { expenses, customers } from "@db/schema";
+import { expenses } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { expenseSchema, type ExpenseInput } from "@/schemas/expense";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export async function getExpenses(customerId?: string) {
+// Helper to get the logged-in user ID securely
+async function getRequiredUserId() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error("Unauthorized access. Please sign in.");
+  }
+  return user.id;
+}
+
+export async function getExpenses() {
   try {
-    // Rule 1: Select only the required fields including join
-    const query = db
+    const userId = await getRequiredUserId();
+    return await db
       .select({
         id: expenses.id,
-        amount: expenses.amount,
+        customerName: expenses.customerName,
+        customerPhone: expenses.customerPhone,
         category: expenses.category,
-        description: expenses.description,
-        expenseDate: expenses.expenseDate,
-        customerId: expenses.customerId,
-        customerName: customers.name,
+        credit: expenses.credit,
+        debit: expenses.debit,
+        date: expenses.date,
+        note: expenses.note,
       })
       .from(expenses)
-      .innerJoin(customers, eq(expenses.customerId, customers.id));
-
-    if (customerId) {
-      return await query
-        .where(eq(expenses.customerId, customerId))
-        .orderBy(desc(expenses.expenseDate));
-    }
-
-    return await query.orderBy(desc(expenses.expenseDate));
+      .where(eq(expenses.userId, userId))
+      .orderBy(desc(expenses.date));
   } catch (error) {
     console.error("Failed to get expenses:", error);
     throw new Error("Failed to retrieve expenses");
   }
 }
 
+export async function getDistinctCustomers() {
+  try {
+    const userId = await getRequiredUserId();
+    const results = await db
+      .selectDistinct({
+        customerName: expenses.customerName,
+        customerPhone: expenses.customerPhone,
+        category: expenses.category,
+      })
+      .from(expenses)
+      .where(eq(expenses.userId, userId))
+      .orderBy(expenses.customerName);
+    return results;
+  } catch (error) {
+    console.error("Failed to get distinct customers:", error);
+    return [];
+  }
+}
+
 export async function createExpense(data: ExpenseInput) {
   try {
+    const userId = await getRequiredUserId();
     const validated = expenseSchema.parse(data);
 
-    // Rule 2: Check if customer exists directly in DB
-    const customerExists = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(eq(customers.id, validated.customerId))
+    // Check if a record with the same customerName and customerPhone already exists FOR THIS ADMIN
+    const existing = await db
+      .select()
+      .from(expenses)
+      .where(
+        and(
+          eq(expenses.userId, userId),
+          eq(expenses.customerName, validated.customerName),
+          eq(expenses.customerPhone, validated.customerPhone)
+        )
+      )
       .limit(1);
 
-    if (customerExists.length === 0) {
-      return { error: "Selected customer does not exist." };
-    }
+    if (existing.length > 0) {
+      // If it exists, add the new credit and debit values to the previous values
+      const record = existing[0];
+      const newCredit = (parseFloat(record.credit) + (validated.credit ?? 0)).toString();
+      const newDebit = (parseFloat(record.debit) + (validated.debit ?? 0)).toString();
+      
+      // Append the new note to the existing note if provided
+      let updatedNote = record.note;
+      if (validated.note) {
+        updatedNote = record.note ? `${record.note} | ${validated.note}` : validated.note;
+      }
 
-    await db.insert(expenses).values({
-      customerId: validated.customerId,
-      amount: validated.amount.toString(),
-      category: validated.category || null,
-      description: validated.description || null,
-      expenseDate: new Date(validated.expenseDate),
-    });
+      await db
+        .update(expenses)
+        .set({
+          credit: newCredit,
+          debit: newDebit,
+          date: new Date(validated.date),
+          note: updatedNote,
+          category: validated.category || record.category // preserve category if not supplied
+        })
+        .where(
+          and(
+            eq(expenses.id, record.id),
+            eq(expenses.userId, userId)
+          )
+        );
+    } else {
+      // If it doesn't exist, insert a new record under this admin's userId
+      await db.insert(expenses).values({
+        userId,
+        customerName: validated.customerName,
+        customerPhone: validated.customerPhone,
+        category: validated.category || null,
+        credit: (validated.credit ?? 0).toString(),
+        debit: (validated.debit ?? 0).toString(),
+        date: new Date(validated.date),
+        note: validated.note || null,
+      });
+    }
 
     revalidatePath("/expenses");
     revalidatePath("/dashboard");
-    revalidatePath("/customers");
     return { success: true };
-  } catch (error: any) {
-    console.error("Failed to create expense:", error);
-    return { error: error.message || "Failed to create expense" };
+  } catch (error: unknown) {
+    console.error("Failed to create/update expense:", error);
+    const message = error instanceof Error ? error.message : "Failed to create expense";
+    return { error: message };
   }
 }
 
 export async function updateExpense(id: string, data: ExpenseInput) {
   try {
+    const userId = await getRequiredUserId();
     const validated = expenseSchema.parse(data);
-
-    // Rule 2: Check if customer exists directly in DB
-    const customerExists = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(eq(customers.id, validated.customerId))
-      .limit(1);
-
-    if (customerExists.length === 0) {
-      return { error: "Selected customer does not exist." };
-    }
 
     await db
       .update(expenses)
       .set({
-        customerId: validated.customerId,
-        amount: validated.amount.toString(),
+        customerName: validated.customerName,
+        customerPhone: validated.customerPhone,
         category: validated.category || null,
-        description: validated.description || null,
-        expenseDate: new Date(validated.expenseDate),
+        credit: (validated.credit ?? 0).toString(),
+        debit: (validated.debit ?? 0).toString(),
+        date: new Date(validated.date),
+        note: validated.note || null,
       })
-      .where(eq(expenses.id, id));
+      .where(
+        and(
+          eq(expenses.id, id),
+          eq(expenses.userId, userId)
+        )
+      );
 
     revalidatePath("/expenses");
     revalidatePath("/dashboard");
-    revalidatePath("/customers");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to update expense:", error);
-    return { error: error.message || "Failed to update expense" };
+    const message = error instanceof Error ? error.message : "Failed to update expense";
+    return { error: message };
   }
 }
 
 export async function deleteExpense(id: string) {
   try {
-    await db.delete(expenses).where(eq(expenses.id, id));
+    const userId = await getRequiredUserId();
+    await db.delete(expenses).where(
+      and(
+        eq(expenses.id, id),
+        eq(expenses.userId, userId)
+      )
+    );
     revalidatePath("/expenses");
     revalidatePath("/dashboard");
-    revalidatePath("/customers");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to delete expense:", error);
-    return { error: error.message || "Failed to delete expense" };
+    const message = error instanceof Error ? error.message : "Failed to delete expense";
+    return { error: message };
   }
 }
 
 export async function getCategories() {
   try {
-    // Select distinct categories that are not null
+    const userId = await getRequiredUserId();
     const results = await db
       .selectDistinct({
         category: expenses.category,
       })
       .from(expenses)
+      .where(eq(expenses.userId, userId))
       .orderBy(expenses.category);
 
     return results

@@ -1,46 +1,64 @@
 "use server";
 
 import { db } from "@db/index";
-import { customers, expenses } from "@db/schema";
-import { count, sum, and, gte, lte, eq, desc } from "drizzle-orm";
+import { expenses } from "@db/schema";
+import { desc, sql, and, eq } from "drizzle-orm";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export async function getDashboardStats() {
+interface StatsQueryResult {
+  customer_count: number | null;
+  total_credit: string | null;
+  total_debit: string | null;
+}
+
+interface TrendQueryResult {
+  month_num: number | null;
+  total_amount: string | null;
+}
+
+// Helper to get the logged-in user ID securely
+async function getRequiredUserId() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error("Unauthorized access. Please sign in.");
+  }
+  return user.id;
+}
+
+export async function getDashboardStats(startDate?: string, endDate?: string) {
   try {
+    const userId = await getRequiredUserId();
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Rule 1: Get total customers count directly from DB
-    const customerCountRes = await db
-      .select({ count: count() })
-      .from(customers);
-    const totalCustomers = customerCountRes[0]?.count || 0;
+    const result = await db.execute(sql`
+      SELECT 
+        (SELECT COUNT(DISTINCT customer_name) FROM expenses WHERE user_id = ${userId})::int as customer_count,
+        (SELECT COALESCE(SUM(credit), 0) 
+         FROM expenses 
+         WHERE user_id = ${userId}
+           AND date >= ${start.toISOString()}::timestamptz 
+           AND date <= ${end.toISOString()}::timestamptz)::numeric as total_credit,
+        (SELECT COALESCE(SUM(debit), 0) 
+         FROM expenses 
+         WHERE user_id = ${userId}
+           AND date >= ${start.toISOString()}::timestamptz 
+           AND date <= ${end.toISOString()}::timestamptz)::numeric as total_debit
+    `);
 
-    // Rule 1: Get sum of monthly budgets directly from DB
-    const monthlyBudgetRes = await db
-      .select({ sum: sum(customers.monthlyBudget) })
-      .from(customers);
-    const totalMonthlyBudget = parseFloat(monthlyBudgetRes[0]?.sum || "0");
-
-    // Rule 1: Get sum of expenses in the current month directly from DB
-    const monthlyExpenseRes = await db
-      .select({ sum: sum(expenses.amount) })
-      .from(expenses)
-      .where(
-        and(
-          gte(expenses.expenseDate, startOfMonth),
-          lte(expenses.expenseDate, endOfMonth)
-        )
-      );
-    const totalMonthlyExpense = parseFloat(monthlyExpenseRes[0]?.sum || "0");
-
-    const remainingBudget = totalMonthlyBudget - totalMonthlyExpense;
+    const stats = (result[0] as unknown) as StatsQueryResult | undefined;
+    const totalCustomers = stats?.customer_count ?? 0;
+    const totalCredit = parseFloat(stats?.total_credit ?? "0");
+    const totalDebit = parseFloat(stats?.total_debit ?? "0");
+    const netBalance = totalCredit - totalDebit;
 
     return {
       totalCustomers,
-      totalMonthlyBudget,
-      totalMonthlyExpense,
-      remainingBudget,
+      totalCredit,
+      totalDebit,
+      netBalance,
     };
   } catch (error) {
     console.error("Failed to fetch dashboard stats:", error);
@@ -48,63 +66,73 @@ export async function getDashboardStats() {
   }
 }
 
-export async function getMonthlyTrend() {
+export async function getMonthlyTrend(startDate?: string, endDate?: string) {
   try {
+    const userId = await getRequiredUserId();
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), 0, 1);
+    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
 
-    // Rule 1: Fetch only date and amount columns for trend processing
-    const yearExpenses = await db
-      .select({
-        amount: expenses.amount,
-        expenseDate: expenses.expenseDate,
-      })
-      .from(expenses)
-      .where(
-        and(
-          gte(expenses.expenseDate, startOfYear),
-          lte(expenses.expenseDate, endOfYear)
-        )
-      );
+    // Trend shows net balance (debit - credit) over months for this user
+    const results = await db.execute(sql`
+      SELECT
+        EXTRACT(MONTH FROM date)::int as month_num,
+        COALESCE(SUM(debit - credit), 0)::numeric as total_amount
+      FROM expenses
+      WHERE user_id = ${userId}
+        AND date >= ${start.toISOString()}::timestamptz
+        AND date <= ${end.toISOString()}::timestamptz
+      GROUP BY EXTRACT(MONTH FROM date)
+      ORDER BY month_num
+    `);
 
     const monthNames = [
       "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
 
-    const trendData = monthNames.map((month, index) => {
-      const amount = yearExpenses
-        .filter((e) => new Date(e.expenseDate).getMonth() === index)
-        .reduce((acc, e) => acc + parseFloat(e.amount), 0);
+    const monthMap = new Map<number, number>();
+    for (const row of results) {
+      const typedRow = (row as unknown) as TrendQueryResult;
+      if (typedRow.month_num !== null) {
+        monthMap.set(typedRow.month_num, parseFloat(typedRow.total_amount ?? "0"));
+      }
+    }
 
-      return {
-        month,
-        amount,
-      };
-    });
-
-    return trendData;
+    return monthNames.map((month, index) => ({
+      month,
+      amount: monthMap.get(index + 1) ?? 0,
+    }));
   } catch (error) {
     console.error("Failed to fetch monthly trend:", error);
     throw new Error("Failed to load expense trend analytics");
   }
 }
 
-export async function getRecentExpenses() {
+export async function getRecentExpenses(startDate?: string, endDate?: string) {
   try {
-    // Rule 1: Select only the required columns for audit list
+    const userId = await getRequiredUserId();
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
     return await db
       .select({
         id: expenses.id,
-        amount: expenses.amount,
+        credit: expenses.credit,
+        debit: expenses.debit,
         category: expenses.category,
-        expenseDate: expenses.expenseDate,
-        customerName: customers.name,
+        date: expenses.date,
+        customerName: expenses.customerName,
       })
       .from(expenses)
-      .innerJoin(customers, eq(expenses.customerId, customers.id))
-      .orderBy(desc(expenses.expenseDate))
+      .where(
+        and(
+          eq(expenses.userId, userId),
+          sql`date >= ${start.toISOString()}::timestamptz AND date <= ${end.toISOString()}::timestamptz`
+        )
+      )
+      .orderBy(desc(expenses.date))
       .limit(5);
   } catch (error) {
     console.error("Failed to fetch recent expenses:", error);

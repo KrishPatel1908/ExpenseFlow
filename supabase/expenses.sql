@@ -1,10 +1,10 @@
 -- supabase/expenses.sql
 CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id UUID REFERENCES customers(id) ON DELETE CASCADE NOT NULL,
-    amount NUMERIC(12, 2) NOT NULL,
+    customer_name TEXT NOT NULL,
     category TEXT,
-    description TEXT,
-    expense_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+    credit NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    debit NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
+    note TEXT
 );

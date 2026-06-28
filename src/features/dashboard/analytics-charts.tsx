@@ -1,5 +1,3 @@
-"use strict";
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,25 +10,26 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   Cell
 } from "recharts";
 
 interface AnalyticsChartsProps {
-  totalMonthlyBudget: number;
-  totalMonthlyExpense: number;
+  totalCredit: number;
+  totalDebit: number;
   trendData: { month: string; amount: number }[];
 }
 
 export function AnalyticsCharts({
-  totalMonthlyBudget,
-  totalMonthlyExpense,
+  totalCredit,
+  totalDebit,
   trendData,
 }: AnalyticsChartsProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -42,64 +41,72 @@ export function AnalyticsCharts({
     }).format(value);
   };
 
-  const budgetVsExpenseData = [
+  const creditVsDebitData = [
     {
-      name: "Budget",
-      amount: totalMonthlyBudget,
-      fill: "#0ea5e9", // Sky-500
+      name: "Credit",
+      amount: totalCredit,
+      fill: "#f59e0b", // Amber
     },
     {
-      name: "Expense",
-      amount: totalMonthlyExpense,
-      fill: totalMonthlyExpense > totalMonthlyBudget ? "#ef4444" : "#f43f5e", // Red-500 or Rose-500
+      name: "Debit",
+      amount: totalDebit,
+      fill: "#10b981", // Emerald
     },
   ];
 
   if (!mounted) {
     return (
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border border-slate-200 bg-white p-6 h-[350px] animate-pulse flex items-center justify-center">
-          <span className="text-slate-400 text-sm">Loading charts...</span>
-        </Card>
-        <Card className="border border-slate-200 bg-white p-6 h-[350px] animate-pulse flex items-center justify-center">
-          <span className="text-slate-400 text-sm">Loading charts...</span>
-        </Card>
+      <div className="grid gap-5 md:grid-cols-2">
+        <Card className="border border-slate-100 bg-white p-6 h-[350px] animate-pulse rounded-xl" />
+        <Card className="border border-slate-100 bg-white p-6 h-[350px] animate-pulse rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Budget vs Expense Chart */}
-      <Card className="border border-slate-200 bg-white shadow-xs">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-900">Monthly Budget vs Expense</CardTitle>
-          <CardDescription className="text-xs text-slate-500">Comparison of allocated budget vs actual spending this month.</CardDescription>
+    <div className="grid gap-5 md:grid-cols-2">
+      {/* Left Card: Credit vs Debit Comparison */}
+      <Card className="border border-slate-100 bg-white rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-extrabold text-slate-800 tracking-tight">Credit vs Debit Comparison</CardTitle>
+            <CardDescription className="text-xs text-slate-400">Comparison of total credits vs total debits recorded</CardDescription>
+          </div>
+          <div className="flex items-center gap-4 text-[10px] font-bold tracking-wider uppercase text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
+              <span>Credit</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#10b981]" />
+              <span>Debit</span>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="pt-4">
-          <div className="h-[260px] w-full">
+        <CardContent className="pt-2">
+          <div className="h-[260px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={budgetVsExpenseData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+              <BarChart data={creditVsDebitData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }} 
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                 />
-                <YAxis 
-                  tickLine={false} 
+                <YAxis
+                  tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                   tickFormatter={(val) => `₹${val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
                 />
-                <Tooltip 
-                  formatter={(value: any) => [formatCurrency(Number(value || 0)), "Amount"]} 
-                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "8px" }}
-                  labelStyle={{ fontWeight: "600", color: "#0f172a" }}
+                <Tooltip
+                  formatter={(value: number | string | unknown) => [formatCurrency(Number(value || 0)), "Amount"]}
+                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
+                  labelStyle={{ fontWeight: "700", color: "#0f172a", fontSize: 12 }}
                 />
-                <Bar dataKey="amount" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {budgetVsExpenseData.map((entry, index) => (
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                  {creditVsDebitData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -109,43 +116,59 @@ export function AnalyticsCharts({
         </CardContent>
       </Card>
 
-      {/* Monthly Trend Chart */}
-      <Card className="border border-slate-200 bg-white shadow-xs">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-900">Expense Trend</CardTitle>
-          <CardDescription className="text-xs text-slate-500">Overview of expenses across all months of the current year.</CardDescription>
+      {/* Right Card: Net Balance Trend */}
+      <Card className="border border-slate-100 bg-white rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)]">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-extrabold text-slate-800 tracking-tight">Net Balance Trend</CardTitle>
+            <CardDescription className="text-xs text-slate-400">Overview of net balance (Credit - Debit) across months</CardDescription>
+          </div>
+          <div className="flex items-center gap-4 text-[10px] font-bold tracking-wider uppercase text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#4f46e5]" />
+              <span>Net Trend</span>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="pt-4">
-          <div className="h-[260px] w-full">
+        <CardContent className="pt-2">
+          <div className="h-[260px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="month" 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }} 
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                 />
-                <YAxis 
-                  tickLine={false} 
+                <YAxis
+                  tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                   tickFormatter={(val) => `₹${val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
                 />
-                <Tooltip 
-                  formatter={(value: any) => [formatCurrency(Number(value || 0)), "Total Spend"]} 
-                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "8px" }}
-                  labelStyle={{ fontWeight: "600", color: "#0f172a" }}
+                <Tooltip
+                  formatter={(value: number | string | unknown) => [formatCurrency(Number(value || 0)), "Net Balance"]}
+                  contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f1f5f9", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
+                  labelStyle={{ fontWeight: "700", color: "#0f172a", fontSize: 12 }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="#0ea5e9" // Sky-500
-                  strokeWidth={2.5}
-                  dot={{ r: 4, strokeWidth: 2, fill: "#ffffff" }}
-                  activeDot={{ r: 6 }}
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#4f46e5"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorTrend)"
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 1, stroke: "#ffffff", fill: "#4f46e5" }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </CardContent>

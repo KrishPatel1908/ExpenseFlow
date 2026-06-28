@@ -36,12 +36,13 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const defaultLandingPage = request.cookies.get("default_landing_page")?.value || "/dashboard";
   const url = request.nextUrl.clone();
 
   const isDashboardRoute = 
     url.pathname.startsWith("/dashboard") ||
-    url.pathname.startsWith("/customers") ||
-    url.pathname.startsWith("/expenses");
+    url.pathname.startsWith("/expenses") ||
+    url.pathname.startsWith("/alerts");
 
   const isLoginRoute = url.pathname === "/login";
   const isRootRoute = url.pathname === "/";
@@ -54,13 +55,13 @@ export async function proxy(request: NextRequest) {
 
   // Redirecting logged-in users from login page
   if (isLoginRoute && user) {
-    url.pathname = "/dashboard";
+    url.pathname = defaultLandingPage;
     return NextResponse.redirect(url);
   }
 
   // Redirecting root path
   if (isRootRoute) {
-    url.pathname = user ? "/dashboard" : "/login";
+    url.pathname = user ? defaultLandingPage : "/login";
     return NextResponse.redirect(url);
   }
 

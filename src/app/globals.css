@@ -55,19 +55,19 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0f172a; /* Slate-900 primary */
+  --primary: #0b132a; /* Custom Deep Navy primary */
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9; /* Slate-100 */
-  --secondary-foreground: #0f172a;
+  --secondary-foreground: #0b132a;
   --muted: #f1f5f9;
   --muted-foreground: #64748b; /* Slate-500 */
   --accent: #f1f5f9; /* Slate-100 accent */
-  --accent-foreground: #0f172a;
+  --accent-foreground: #0b132a;
   --destructive: #ef4444; /* Red-500 */
   --destructive-foreground: #ffffff;
   --border: #e2e8f0; /* Slate-200 */
   --input: #e2e8f0;
-  --ring: #0f172a; /* Slate-900 ring */
+  --ring: #0b132a; /* Custom Deep Navy ring */
   --chart-1: #0ea5e9; /* Sky-500 */
   --chart-2: #10b981; /* Emerald-500 */
   --chart-3: #f59e0b; /* Amber-500 */

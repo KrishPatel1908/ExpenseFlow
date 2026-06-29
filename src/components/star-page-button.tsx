@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { setDefaultLandingPage } from "@/services/auth-actions";
 
 interface StarPageButtonProps {
   pagePath: "/dashboard" | "/expenses";
@@ -21,19 +22,29 @@ export function StarPageButton({ pagePath, pageName }: StarPageButtonProps) {
     setIsStarred(landing === pagePath);
   }, [pagePath]);
 
-  const handleToggleStar = () => {
-    if (isStarred) {
-      // If we unstar, fallback to dashboard
-      localStorage.setItem("default_landing_page", "/dashboard");
-      setIsStarred(false);
-      toast.success(`Removed ${pageName} as default page.`);
-    } else {
-      localStorage.setItem("default_landing_page", pagePath);
-      setIsStarred(true);
-      toast.success(`Set ${pageName} as your default homepage!`);
-    }
-    // Dispatch storage event to update other components instantly
+  const handleToggleStar = async () => {
+    const newPath = isStarred ? "/dashboard" : pagePath;
+    
+    // Update local state and storage instantly
+    localStorage.setItem("default_landing_page", newPath);
+    document.cookie = `default_landing_page=${newPath}; path=/; max-age=${60*60*24*365}; SameSite=Lax`;
+    setIsStarred(!isStarred);
     window.dispatchEvent(new Event("storage"));
+
+    try {
+      const result = await setDefaultLandingPage(newPath);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(
+          isStarred
+            ? `Removed ${pageName} as default page.`
+            : `Set ${pageName} as your default homepage!`
+        );
+      }
+    } catch {
+      toast.error("Failed to save homepage preference to database.");
+    }
   };
 
   // Listen for storage changes in case another page changes the default

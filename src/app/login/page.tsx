@@ -38,6 +38,7 @@ export default function LoginPage() {
         toast.error(result.error);
       } else {
         toast.success("Logged in successfully!");
+        sessionStorage.removeItem("has_redirected");
         router.push("/dashboard");
         router.refresh();
       }

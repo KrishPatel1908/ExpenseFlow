@@ -18,6 +18,7 @@ export default function HomePage() {
         <div className="flex justify-center gap-4">
           <Link
             href="/dashboard"
+            prefetch={false}
             className="rounded-lg bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
           >
             Go to Dashboard
@@ -25,6 +26,7 @@ export default function HomePage() {
 
           <Link
             href="/login"
+            prefetch={false}
             className="rounded-lg border border-stone-300 bg-white px-6 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
           >
             Admin Login

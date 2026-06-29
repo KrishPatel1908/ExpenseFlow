@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@db/index";
-import { expenses } from "@db/schema";
+import { expenses, customers } from "@db/schema";
 import { desc, sql, and, eq } from "drizzle-orm";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -35,7 +35,7 @@ export async function getDashboardStats(startDate?: string, endDate?: string) {
 
     const result = await db.execute(sql`
       SELECT 
-        (SELECT COUNT(DISTINCT customer_name) FROM expenses WHERE user_id = ${userId})::int as customer_count,
+        (SELECT COUNT(*)::int FROM customers WHERE user_id = ${userId}) as customer_count,
         (SELECT COALESCE(SUM(credit), 0) 
          FROM expenses 
          WHERE user_id = ${userId}
@@ -123,13 +123,14 @@ export async function getRecentExpenses(startDate?: string, endDate?: string) {
         debit: expenses.debit,
         category: expenses.category,
         date: expenses.date,
-        customerName: expenses.customerName,
+        customerName: customers.name,
       })
       .from(expenses)
+      .innerJoin(customers, eq(expenses.customerId, customers.id))
       .where(
         and(
           eq(expenses.userId, userId),
-          sql`date >= ${start.toISOString()}::timestamptz AND date <= ${end.toISOString()}::timestamptz`
+          sql`expenses.date >= ${start.toISOString()}::timestamptz AND expenses.date <= ${end.toISOString()}::timestamptz`
         )
       )
       .orderBy(desc(expenses.date))

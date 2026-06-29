@@ -4,6 +4,9 @@ import { AnalyticsCharts } from "@/features/dashboard/analytics-charts";
 import { RecentExpenses } from "@/features/dashboard/recent-expenses";
 import { DateRangePicker } from "@/features/dashboard/date-range-picker";
 import { LandingRedirect } from "@/components/landing-redirect";
+import { getDefaultLandingPage } from "@/services/auth-actions";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { format } from "date-fns";
 
 export const revalidate = 0; // Fetch fresh data on every request
@@ -16,6 +19,13 @@ interface PageProps {
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   const { startDate, endDate } = await searchParams;
 
   const now = new Date();
@@ -25,17 +35,18 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const start = startDate || defaultStart;
   const end = endDate || defaultEnd;
 
-  // Fetch stats, trends, and recent logs for the specified date range in parallel
-  const [stats, trendData, recentExpenses] = await Promise.all([
+  // Fetch stats, trends, recent logs, and default landing page in parallel
+  const [stats, trendData, recentExpenses, defaultLanding] = await Promise.all([
     getDashboardStats(start, end),
     getMonthlyTrend(start, end),
-    getRecentExpenses(start, end)
+    getRecentExpenses(start, end),
+    getDefaultLandingPage()
   ]);
 
   return (
     <div className="space-y-6">
       {/* Client-side redirect enforcer if user starred another landing page */}
-      <LandingRedirect />
+      <LandingRedirect defaultLanding={defaultLanding} />
 
       {/* Vitals Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">

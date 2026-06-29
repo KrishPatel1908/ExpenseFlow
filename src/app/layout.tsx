@@ -12,6 +12,9 @@ const jakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "ExpenseFlow - Admin Dashboard",
   description: "Manage customer budgets and expenses with a clean, fast, and modern dashboard.",
+  icons: {
+    icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>",
+  },
 };
 
 export default function RootLayout({

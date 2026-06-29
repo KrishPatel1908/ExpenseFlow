@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Search, Edit2, Trash2, Calendar, Tag, User, Loader2, Download, Phone, CalendarRange, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ interface Expense {
   category: string | null;
   credit: string;
   debit: string;
+  netBalance: string;
   date: Date;
   note: string | null;
 }
@@ -47,11 +48,36 @@ export default function ExpensesPage() {
   // Other filters state
   const [typeFilter, setTypeFilter] = useState<"all" | "credit" | "debit">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+
+  // Helper to get today's date in YYYY-MM-DD local format
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [startDate, setStartDate] = useState(getTodayDateString());
+  const [endDate, setEndDate] = useState(getTodayDateString());
 
   // Mobile filters toggle state
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+
+  // Custom Category Filter Dropdown states
+  const catFilterRef = useRef<HTMLDivElement>(null);
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+
+  // Close category filter dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (catFilterRef.current && !catFilterRef.current.contains(event.target as Node)) {
+        setIsCatDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Debounce effect for search input (500ms delay)
   useEffect(() => {
@@ -135,9 +161,7 @@ export default function ExpensesPage() {
   const downloadCSV = (dataToExport: Expense[], filename: string) => {
     const headers = ["Customer", "Mobile", "Category", "Credit (₹)", "Debit (₹)", "Net Balance (₹)", "Date", "Note"];
     const rows = dataToExport.map((expense) => {
-      const credit = parseFloat(expense.credit);
-      const debit = parseFloat(expense.debit);
-      const net = credit - debit;
+      const net = parseFloat(expense.netBalance);
       return [
         expense.customerName,
         expense.customerPhone || "-",
@@ -263,7 +287,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Unified Premium Search & Collapsible Filters Panel */}
-      <Card className="border border-slate-200 bg-white p-5 rounded-2xl shadow-xs space-y-4 mb-6">
+      <div className="border border-slate-200 bg-white p-5 rounded-2xl shadow-xs mb-6">
         {/* Row 1: Search Input + Mobile Filter Toggle Button */}
         <div className="flex gap-3 items-center w-full">
           <div className="relative flex-1">
@@ -273,25 +297,25 @@ export default function ExpensesPage() {
               placeholder="Search customer name, mobile, category, or note..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 text-sm border border-slate-200 rounded-full bg-white shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#0b132a] focus:border-transparent transition-all placeholder:text-slate-400 text-slate-800"
+              className="w-full pl-11 pr-4 h-10 text-sm border border-slate-200 rounded-full bg-white shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#0b132a] focus:border-transparent transition-all placeholder:text-slate-400 text-slate-800"
             />
           </div>
-          <Button
-            variant="outline"
+          <button
+            type="button"
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
             className={cn(
-              "rounded-full h-10 px-4 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 gap-2 sm:hidden cursor-pointer shrink-0 transition-all",
+              "rounded-full h-10 px-4 text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 sm:hidden cursor-pointer shrink-0 transition-all",
               isFiltersExpanded && "bg-slate-100 text-slate-950 border-slate-300"
             )}
           >
             <Filter className="h-4 w-4" />
             <span>Filters</span>
-          </Button>
+          </button>
         </div>
 
         {/* Row 2: 4 Filters with Equal Spacing (Collapsible on Mobile, always visible on Tablet/Desktop) */}
         <div className={cn(
-          "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-slate-100 transition-all duration-300",
+          "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-slate-100 transition-all duration-300 mt-4",
           isFiltersExpanded ? "grid animate-in fade-in slide-in-from-top-2" : "hidden sm:grid"
         )}>
           {/* Filter 1: Transaction Type */}
@@ -308,21 +332,54 @@ export default function ExpensesPage() {
             </select>
           </div>
 
-          {/* Filter 2: Category */}
-          <div className="flex flex-col gap-1.5">
+          {/* Filter 2: Category (Custom Dropdown) */}
+          <div className="flex flex-col gap-1.5 relative" ref={catFilterRef}>
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Category</span>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70"
+            <button
+              type="button"
+              onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
+              className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-750 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70 flex items-center justify-between text-left"
             >
-              <option value="all">All Categories</option>
-              {dbCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              <span>{categoryFilter === "all" ? "All Categories" : categoryFilter}</span>
+              <span className="text-slate-400 text-[9px] ml-1">▼</span>
+            </button>
+
+            {isCatDropdownOpen && (
+              <div className="absolute z-50 w-full top-[58px] bg-white border border-slate-150 rounded-xl shadow-md max-h-[220px] overflow-y-auto p-1 space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFilter("all");
+                    setIsCatDropdownOpen(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer",
+                    categoryFilter === "all" ? "bg-[#0b132a] text-white font-semibold" : "text-slate-700 hover:bg-slate-50"
+                  )}
+                >
+                  All Categories
+                </button>
+                {dbCategories.map((cat) => {
+                  const isSelected = categoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setCategoryFilter(cat);
+                        setIsCatDropdownOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer",
+                        isSelected ? "bg-[#0b132a] text-white font-semibold" : "text-slate-700 hover:bg-slate-50"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Filter 3: From Date */}
@@ -369,7 +426,7 @@ export default function ExpensesPage() {
             </button>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Main Expenses Table (Allows horizontal scroll and locks vertical height to prevent endless page scrolling) */}
       <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">
@@ -402,7 +459,7 @@ export default function ExpensesPage() {
                 {filteredExpenses.map((expense) => {
                   const creditVal = parseFloat(expense.credit);
                   const debitVal = parseFloat(expense.debit);
-                  const custNetBal = creditVal - debitVal;
+                  const custNetBal = parseFloat(expense.netBalance);
                   const custCreditRemains = custNetBal > 0;
                   return (
                     <tr
@@ -432,26 +489,13 @@ export default function ExpensesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-3.5 font-medium text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>{expense.customerName}</span>
-                        </div>
+                        {expense.customerName}
                       </td>
                       <td className="px-6 py-3.5 text-slate-500">
-                        {expense.customerPhone ? (
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                            <span>{expense.customerPhone}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic">—</span>
-                        )}
+                        {expense.customerPhone || <span className="text-slate-400 italic">—</span>}
                       </td>
                       <td className="px-6 py-3.5 text-slate-500">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>{format(expense.date, "dd MMM yyyy")}</span>
-                        </div>
+                        {format(expense.date, "dd MMM yyyy")}
                       </td>
                       <td className="px-6 py-3.5 font-bold text-red-600 bg-red-50/10">
                         {creditVal > 0 ? formatCurrency(expense.credit) : "—"}

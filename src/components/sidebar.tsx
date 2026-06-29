@@ -6,15 +6,26 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Receipt,
+  Users,
   Menu,
   X,
-  TrendingUp,
   LogOut,
-  Star
+  Star,
+  Key
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { logout } from "@/services/auth-actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { logout, setDefaultLandingPage, changePassword } from "@/services/auth-actions";
 import { toast } from "sonner";
 
 const navItems = [
@@ -28,25 +39,42 @@ const navItems = [
     href: "/expenses",
     icon: Receipt,
   },
+  {
+    name: "Customers",
+    href: "/customers",
+    icon: Users,
+  },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  initialStarredPath?: string;
+}
+
+export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [starredPath, setStarredPath] = useState("/dashboard");
+  const [starredPath, setStarredPath] = useState(initialStarredPath);
 
-  // Load and sync starred homepage preference
+  // Change Password Dialog States
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Sync starredPath when initialStarredPath changes
   useEffect(() => {
-    const landing = localStorage.getItem("default_landing_page") || "/dashboard";
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStarredPath(landing);
-    document.cookie = `default_landing_page=${landing}; path=/; max-age=${60*60*24*365}; SameSite=Lax`;
+    setStarredPath(initialStarredPath);
+    localStorage.setItem("default_landing_page", initialStarredPath);
+    document.cookie = `default_landing_page=${initialStarredPath}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+  }, [initialStarredPath]);
 
+  // Sync with storage changes locally
+  useEffect(() => {
     const handleStorageChange = () => {
       const updatedLanding = localStorage.getItem("default_landing_page") || "/dashboard";
       setStarredPath(updatedLanding);
-      document.cookie = `default_landing_page=${updatedLanding}; path=/; max-age=${60*60*24*365}; SameSite=Lax`;
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
@@ -54,23 +82,35 @@ export function Sidebar() {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  const handleToggleStar = (path: string, name: string) => {
+  const handleToggleStar = async (path: string, name: string) => {
+    // 1. Instantly update local state and storage
+    setStarredPath(path);
     localStorage.setItem("default_landing_page", path);
     // eslint-disable-next-line react-hooks/immutability
-    document.cookie = `default_landing_page=${path}; path=/; max-age=${60*60*24*365}; SameSite=Lax`;
-    setStarredPath(path);
-    toast.success(`Set ${name} as your default homepage!`);
+    document.cookie = `default_landing_page=${path}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
     window.dispatchEvent(new Event("storage"));
+
+    // 2. Persist to database
+    try {
+      const res = await setDefaultLandingPage(path);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Set ${name} as your default landing page.`);
+      }
+    } catch {
+      toast.error("Failed to update default page preference.");
+    }
   };
 
   const handleLogout = async () => {
     try {
-      sessionStorage.removeItem("has_redirected");
       const result = await logout();
       if (result.error) {
         toast.error(result.error);
       } else {
         toast.success("Signed out successfully.");
+        sessionStorage.removeItem("has_redirected");
         router.push("/login");
         router.refresh();
       }
@@ -79,12 +119,40 @@ export function Sidebar() {
     }
   };
 
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.trim().length < 6) {
+      toast.error("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const result = await changePassword(newPassword);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Password updated successfully!");
+        setIsPasswordOpen(false);
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch {
+      toast.error("Failed to update password.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
     <>
       {/* Mobile Top Header */}
       <header className="flex h-16 items-center justify-between border-b border-slate-100 bg-white px-4 lg:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2.5 font-bold tracking-tight">
-          <TrendingUp className="h-7 w-7 text-blue-600" />
+        <Link href="/dashboard" prefetch={false} className="flex items-center gap-2.5 font-bold tracking-tight">
           <span className="text-slate-900 font-extrabold text-base">ExpenseFlow</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={toggleSidebar}>
@@ -108,8 +176,7 @@ export function Sidebar() {
       >
         {/* Logo and branding */}
         <div className="flex flex-col px-2 mb-8">
-          <Link href="/dashboard" className="flex items-center gap-3 font-bold tracking-tight text-[#0b132a]">
-            <TrendingUp className="h-8 w-8 text-blue-600" />
+          <Link href="/dashboard" prefetch={false} className="flex items-center gap-3 font-bold tracking-tight text-[#0b132a]">
             <span className="text-[#0b132a] font-black text-xl tracking-tight">ExpenseFlow</span>
           </Link>
         </div>
@@ -130,6 +197,7 @@ export function Sidebar() {
               >
                 <Link
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setIsOpen(false)}
                   className={cn(
                     "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer",
@@ -150,8 +218,8 @@ export function Sidebar() {
                   }}
                   className={cn(
                     "p-1.5 mr-2 rounded-md transition-all duration-200 cursor-pointer shrink-0",
-                    isStarred 
-                      ? "text-amber-500" 
+                    isStarred
+                      ? "text-amber-500"
                       : "text-slate-300 hover:text-amber-500 hover:bg-slate-150/50"
                   )}
                   title={isStarred ? "Current default homepage" : `Set ${item.name} as default homepage`}
@@ -175,16 +243,94 @@ export function Sidebar() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md py-2 px-3 text-xs font-semibold transition-colors cursor-pointer"
-          >
-            <LogOut className="h-4 w-4 text-slate-400" />
-            <span>Sign Out</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsPasswordOpen(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md py-2 px-2.5 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Key className="h-3.5 w-3.5 text-slate-400" />
+              <span>Password</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 rounded-md py-2 px-2.5 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5 text-slate-400 group-hover:text-red-500" />
+              <span>Sign Out</span>
+            </button>
+          </div>
           <div className="h-4 lg:h-0" />
         </div>
       </aside>
+
+      {/* Change Password Dialog */}
+      <Dialog open={isPasswordOpen} onOpenChange={setIsPasswordOpen}>
+        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden rounded-2xl">
+          <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+            <div className="p-6 space-y-4">
+              <DialogHeader>
+                <DialogTitle>Change Password</DialogTitle>
+                <DialogDescription>
+                  {"Enter your new password below. Make sure it is secure."}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPass" className="text-slate-700 font-bold">New Password</Label>
+                  <Input
+                    id="newPass"
+                    type="password"
+                    placeholder="At least 6 characters..."
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="h-10 text-sm"
+                    required
+                    disabled={isChangingPassword}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPass" className="text-slate-700 font-bold">Confirm New Password</Label>
+                  <Input
+                    id="confirmPass"
+                    type="password"
+                    placeholder="Confirm your password..."
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-10 text-sm"
+                    required
+                    disabled={isChangingPassword}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="p-6 bg-slate-50/50 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPasswordOpen(false);
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                disabled={isChangingPassword}
+                className="cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isChangingPassword}
+                className="bg-[#0b132a] hover:bg-[#1a284e] text-white font-semibold cursor-pointer"
+              >
+                {isChangingPassword ? "Updating..." : "Update Password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

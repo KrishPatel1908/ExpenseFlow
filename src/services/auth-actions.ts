@@ -4,6 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loginSchema, type LoginInput } from "@/schemas/auth";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { db } from "@db/index";
+import { userPreferences } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 // In-memory rate limiting map (IP/Email -> { count, resetTime })
 const limitMap = new Map<string, { count: number; resetTime: number }>();
@@ -105,6 +108,80 @@ export async function logout() {
     return { success: true };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to log out";
+    return { error: message };
+  }
+}
+
+export async function getDefaultLandingPage() {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return "/dashboard";
+
+    const record = await db
+      .select({ defaultLandingPage: userPreferences.defaultLandingPage })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, user.id))
+      .limit(1);
+
+    return record[0]?.defaultLandingPage ?? "/dashboard";
+  } catch (error) {
+    console.error("Failed to get default landing page:", error);
+    return "/dashboard";
+  }
+}
+
+export async function setDefaultLandingPage(page: string) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      throw new Error("Unauthorized access. Please sign in.");
+    }
+
+    await db
+      .insert(userPreferences)
+      .values({
+        userId: user.id,
+        defaultLandingPage: page,
+      })
+      .onConflictDoUpdate({
+        target: userPreferences.userId,
+        set: { defaultLandingPage: page },
+      });
+
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Failed to set default landing page:", error);
+    const message = error instanceof Error ? error.message : "Failed to update preference";
+    return { error: message };
+  }
+}
+
+export async function changePassword(newPassword: string) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "Unauthorized. Please sign in." };
+    }
+
+    if (newPassword.trim().length < 6) {
+      return { error: "Password must be at least 6 characters long." };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Failed to update password:", error);
+    const message = error instanceof Error ? error.message : "Failed to update password";
     return { error: message };
   }
 }

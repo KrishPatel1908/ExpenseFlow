@@ -112,7 +112,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         setCustomersList(formatted);
         setCategoriesList(categoriesData);
       } catch {
-        toast.error("Failed to load autocomplete options.");
+        toast.error("Could not load customer suggestions. Please refresh the page.");
       }
     }
     if (isOpen) {
@@ -224,19 +224,31 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
       if (activeTab === "expense" || initialData) {
         // --- ADD / EDIT EXPENSE FORM ---
         if (!selectedCustomer) {
-          toast.error("Please select a customer.");
+          toast.error("Please select an existing customer or create a new one.");
           setIsSubmitting(false);
           return;
         }
 
         if (!selectedCustomer.customerPhone || selectedCustomer.customerPhone.trim().length < 10) {
-          toast.error("A valid 10-digit mobile number is required for the customer.");
+          toast.error("The selected customer does not have a valid 10-digit mobile number.");
           setIsSubmitting(false);
           return;
         }
 
         const creditVal = parseFloat(expenseCredit) || 0;
         const debitVal = parseFloat(expenseDebit) || 0;
+
+        if (creditVal < 0) {
+          toast.error("Credit amount cannot be negative.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (debitVal < 0) {
+          toast.error("Debit amount cannot be negative.");
+          setIsSubmitting(false);
+          return;
+        }
+
         const finalDate = expenseDate ? new Date(expenseDate).toISOString() : new Date().toISOString();
 
         const payload = {
@@ -254,7 +266,11 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           : await createExpense(payload);
 
         if (res.error) {
-          toast.error(res.error);
+          if (res.error.includes("unique") || res.error.includes("already exists")) {
+            toast.error("A customer with this mobile number already exists.");
+          } else {
+            toast.error("Failed to save transaction. Please check your inputs and try again.");
+          }
         } else {
           toast.success(initialData ? "Transaction updated successfully!" : "Transaction recorded successfully!");
           onSuccess();
@@ -263,18 +279,30 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
       } else {
         // --- ADD CUSTOMER FORM ---
         if (!custName || custName.trim().length < 2) {
-          toast.error("Customer name is required.");
+          toast.error("Please enter a customer name (at least 2 characters).");
           setIsSubmitting(false);
           return;
         }
         if (!custPhone || custPhone.trim().length !== 10) {
-          toast.error("Mobile number must be exactly 10 digits.");
+          toast.error("Please enter a valid 10-digit mobile number.");
           setIsSubmitting(false);
           return;
         }
 
         const creditVal = parseFloat(custCredit) || 0;
         const debitVal = parseFloat(custDebit) || 0;
+
+        if (creditVal < 0) {
+          toast.error("Initial credit cannot be negative.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (debitVal < 0) {
+          toast.error("Initial debit cannot be negative.");
+          setIsSubmitting(false);
+          return;
+        }
+
         const finalDate = custDate ? new Date(custDate).toISOString() : new Date().toISOString();
 
         const payload = {
@@ -290,7 +318,11 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         const res = await createExpense(payload);
 
         if (res.error) {
-          toast.error(res.error);
+          if (res.error.includes("unique") || res.error.includes("already exists")) {
+            toast.error("A customer with this mobile number already exists.");
+          } else {
+            toast.error("Failed to create customer. Please check your inputs.");
+          }
         } else {
           toast.success("Customer and initial balance recorded!");
           onSuccess();
@@ -298,7 +330,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         }
       }
     } catch {
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error("Something went wrong while saving. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -436,9 +468,16 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                       id="expenseCredit"
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="₹ 0.00"
                       value={expenseCredit}
-                      onChange={(e) => setExpenseCredit(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExpenseCredit(val);
+                        if (parseFloat(val) > 0) {
+                          setExpenseDebit("0");
+                        }
+                      }}
                       className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
                       required
                     />
@@ -449,9 +488,16 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                       id="expenseDebit"
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="₹ 0.00"
                       value={expenseDebit}
-                      onChange={(e) => setExpenseDebit(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExpenseDebit(val);
+                        if (parseFloat(val) > 0) {
+                          setExpenseCredit("0");
+                        }
+                      }}
                       className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
                       required
                     />
@@ -476,7 +522,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                   {showExpenseCatSuggestions && filteredExpenseCategories.length > 0 && (
                     <div
                       ref={expenseCatRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto p-1.5 space-y-1"
+                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-[140px] overflow-y-auto p-1.5 space-y-1"
                     >
                       {filteredExpenseCategories.map((cat) => (
                         <button
@@ -570,7 +616,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                   {showCustCatSuggestions && filteredCustCategories.length > 0 && (
                     <div
                       ref={custCatRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto p-1.5 space-y-1"
+                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-[140px] overflow-y-auto p-1.5 space-y-1"
                     >
                       {filteredCustCategories.map((cat) => (
                         <button
@@ -597,9 +643,16 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                       id="custCredit"
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="₹ 0.00"
                       value={custCredit}
-                      onChange={(e) => setCustCredit(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustCredit(val);
+                        if (parseFloat(val) > 0) {
+                          setCustDebit("0");
+                        }
+                      }}
                       className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
                       required
                     />
@@ -610,9 +663,16 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                       id="custDebit"
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="₹ 0.00"
                       value={custDebit}
-                      onChange={(e) => setCustDebit(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustDebit(val);
+                        if (parseFloat(val) > 0) {
+                          setCustCredit("0");
+                        }
+                      }}
                       className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
                       required
                     />

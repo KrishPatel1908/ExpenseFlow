@@ -4,24 +4,27 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export function LandingRedirect() {
+interface LandingRedirectProps {
+  defaultLanding?: string;
+}
+
+export function LandingRedirect({ defaultLanding = "/dashboard" }: LandingRedirectProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if we have already performed the initial redirect in this session
     const hasRedirected = sessionStorage.getItem("has_redirected");
-    const landing = localStorage.getItem("default_landing_page");
 
-    if (landing === "/expenses" && !hasRedirected) {
+    if (defaultLanding !== "/dashboard" && !hasRedirected) {
       // Set the session flag so we don't redirect again when navigating back
       sessionStorage.setItem("has_redirected", "true");
-      router.replace("/expenses");
+      router.replace(defaultLanding);
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     }
-  }, [router]);
+  }, [router, defaultLanding]);
 
   if (loading) {
     return (

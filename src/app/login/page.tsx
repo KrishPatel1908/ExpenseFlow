@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,10 +12,21 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { loginSchema, type LoginInput } from "@/schemas/auth";
 import { login } from "@/services/auth-actions";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        router.replace("/dashboard");
+      }
+    };
+    checkUser();
+  }, [router]);
 
   const {
     register,

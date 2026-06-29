@@ -1,6 +1,16 @@
 import Link from "next/link";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getDefaultLandingPage } from "@/services/auth-actions";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    const defaultLanding = await getDefaultLandingPage();
+    redirect(defaultLanding);
+  }
   return (
     <main className="flex min-h-screen items-center justify-center bg-stone-100 px-6">
       <div className="w-full max-w-2xl text-center">

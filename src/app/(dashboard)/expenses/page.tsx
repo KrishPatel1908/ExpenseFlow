@@ -566,12 +566,9 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        {/* Clear Date Filter Button */}
+        {/* Clear Date Filter Button — Desktop only (inside filter card) */}
         {(startDate || endDate) && (
-          <div className={cn(
-            "justify-end pt-2 border-t border-slate-100",
-            isFiltersExpanded ? "flex" : "hidden sm:flex"
-          )}>
+          <div className="hidden sm:flex justify-end pt-2 border-t border-slate-100">
             <button
               onClick={() => {
                 setStartDate("");
@@ -584,6 +581,22 @@ export default function ExpensesPage() {
           </div>
         )}
       </div>
+
+      {/* Clear Date Filter — Mobile only, between filter card and data card */}
+      {(startDate || endDate) && (
+        <div className="flex sm:hidden justify-end -mt-3">
+          <button
+            onClick={() => {
+              setStartDate("");
+              setEndDate("");
+            }}
+            className="text-xs text-rose-500 hover:text-rose-700 font-semibold cursor-pointer transition-colors flex items-center gap-1"
+          >
+            <span>✕</span>
+            <span>Clear Date Filter</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Expenses Table (Allows horizontal scroll and locks vertical height to prevent endless page scrolling) */}
       <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">

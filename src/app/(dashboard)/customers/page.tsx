@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Trash2, Edit2, Loader2, Phone, User } from "lucide-react";
+import { Search, Trash2, Edit2, Loader2, Phone, User, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,202 @@ export default function CustomersPage() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Helper to generate Customer PDF structure
+  const generateCustomerPDF = async (dataToExport: Customer[], title: string) => {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    const pageW  = 210;
+    const mL     = 12;   // left margin
+    const tableW = pageW - mL * 2;
+
+    // Calculate totals
+    const totalCredit = dataToExport.reduce((sum, cust) => {
+      const bal = parseFloat(cust.netBalance);
+      return bal > 0 ? sum + bal : sum;
+    }, 0);
+    const totalDebit = dataToExport.reduce((sum, cust) => {
+      const bal = parseFloat(cust.netBalance);
+      return bal < 0 ? sum + Math.abs(bal) : sum;
+    }, 0);
+    const netBalance = totalCredit - totalDebit;
+
+    const rs = (val: number) => `Rs. ${Math.abs(val).toLocaleString("en-IN")}`;
+
+    // ── 1. HEADER (White background with dark slate text) ──────────
+    doc.setTextColor(11, 19, 42);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("ExpenseFlow", mL, 11);
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(title, mL + 32, 11);
+
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("All Customers", mL, 18);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 18, { align: "right" });
+
+    // Clean header underline
+    doc.setDrawColor(226, 232, 240);
+    doc.line(mL, 21, pageW - mL, 21);
+
+    // ── 2. SUMMARY STRIP (Tighter minimal spacing, white background) ──
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text("TOTAL CUSTOMERS",  mL,       26);
+    doc.text("TOTAL PAYABLE (CR)",  78,    26);
+    doc.text("TOTAL RECEIVABLE (DR)", 134, 26);
+    doc.text("NET BALANCE",   pageW - mL, 26, { align: "right" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+
+    doc.setTextColor(11, 19, 42);
+    doc.text(String(dataToExport.length), mL, 31);
+
+    doc.setTextColor(195, 28, 28);
+    doc.text(rs(totalCredit), 78, 31);
+
+    doc.setTextColor(4, 128, 80);
+    doc.text(rs(totalDebit), 134, 31);
+
+    const netColor = netBalance >= 0 ? [195, 28, 28] : [4, 128, 80];
+    doc.setTextColor(netColor[0], netColor[1], netColor[2]);
+    doc.text(
+      rs(netBalance),
+      pageW - mL, 31, { align: "right" }
+    );
+
+    // Summary section divider line
+    doc.setDrawColor(226, 232, 240);
+    doc.line(mL, 35, pageW - mL, 35);
+
+    // ── 3. TABLE ───────────────────────────────────────────────────
+    const cols = [
+      { label: "Customer Name",   x: mL,      w: 60 },
+      { label: "Mobile Number",   x: 75,      w: 45 },
+      { label: "Net Balance",     x: 130,     w: 35 },
+      { label: "Status",          x: 175,     w: 23 },
+    ];
+
+    const rowH = 7;
+    let y = 44;
+
+    const drawHeader = () => {
+      doc.setFillColor(11, 19, 42);
+      doc.rect(mL, y - 5, tableW, rowH, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      cols.forEach(col => doc.text(col.label, col.x, y));
+      y += rowH;
+    };
+
+    drawHeader();
+
+    dataToExport.forEach((cust, idx) => {
+      if (y > 275) {
+        doc.addPage();
+        y = 16;
+        drawHeader();
+      }
+
+      doc.setDrawColor(241, 245, 249);
+      doc.line(mL, y + 2.5, mL + tableW, y + 2.5);
+
+      const bal = parseFloat(cust.netBalance);
+      const isCr = bal > 0;
+
+      const rowData = [
+        cust.name.slice(0, 32),
+        cust.phone || "-",
+        rs(bal),
+        isCr ? "Credit (Cr)" : "Debit (Dr)",
+      ];
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+
+      rowData.forEach((val, i) => {
+        if (i === 2) {
+          doc.setTextColor(isCr ? 195 : 4, isCr ? 28 : 128, isCr ? 28 : 80);
+        } else if (i === 3) {
+          doc.setTextColor(isCr ? 195 : 4, isCr ? 28 : 128, isCr ? 28 : 80);
+        } else {
+          doc.setTextColor(30, 41, 59);
+        }
+        doc.text(String(val), cols[i].x, y);
+      });
+
+      y += rowH;
+    });
+
+    // ── 4. FOOTER ─────────────────────────────────────────────────
+    const pageCount = doc.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("ExpenseFlow - Customer Report", mL, 293);
+      doc.text(`Page ${p} of ${pageCount}`, pageW - mL, 293, { align: "right" });
+    }
+
+    return doc;
+  };
+
+  const handleExportPDF = async () => {
+    if (filteredCustomers.length === 0) {
+      toast.error("No customers to export.");
+      return;
+    }
+    try {
+      toast.loading("Generating PDF...", { id: "pdf-gen" });
+      const doc = await generateCustomerPDF(filteredCustomers, "Customer Record");
+      toast.dismiss("pdf-gen");
+      doc.save(`customers-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF downloaded successfully!");
+    } catch (err) {
+      toast.dismiss("pdf-gen");
+      console.error(err);
+      toast.error("Failed to generate PDF.");
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    if (filteredCustomers.length === 0) {
+      toast.error("No customers to share.");
+      return;
+    }
+    try {
+      toast.loading("Generating PDF...", { id: "pdf-gen" });
+      const doc = await generateCustomerPDF(filteredCustomers, "Filtered Customer Record");
+      const pdfBlob = doc.output("blob");
+      const pdfFile = new File([pdfBlob], `customers-${new Date().toISOString().split("T")[0]}.pdf`, { type: "application/pdf" });
+      toast.dismiss("pdf-gen");
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          files: [pdfFile],
+          title: "Customer Report - ExpenseFlow",
+          text: "Filtered Customer Record",
+        });
+        toast.success("PDF shared successfully!");
+      } else {
+        toast.error("Sharing not supported on this device/browser.");
+      }
+    } catch (err) {
+      toast.dismiss("pdf-gen");
+      if (err instanceof Error && err.name !== "AbortError") {
+        toast.error("Failed to generate or share PDF.");
+      }
+    }
+  };
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -155,6 +351,32 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Customers</h1>
           <p className="text-slate-500 mt-1">Manage unique customer profiles and view their net balances.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          {/* Download PDF button — Desktop & Mobile */}
+          <Button
+            onClick={handleExportPDF}
+            variant="outline"
+            className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2 cursor-pointer"
+            disabled={filteredCustomers.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            <span>Download PDF</span>
+          </Button>
+
+          {/* WhatsApp Share Button — Mobile Only (hidden on desktop via CSS) */}
+          <Button
+            onClick={handleShareWhatsApp}
+            variant="outline"
+            disabled={filteredCustomers.length === 0}
+            className="sm:hidden border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366] font-medium gap-2 cursor-pointer"
+            id="whatsapp-share-btn"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+            </svg>
+            <span>Share via WhatsApp</span>
+          </Button>
         </div>
       </div>
 

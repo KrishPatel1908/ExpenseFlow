@@ -129,10 +129,9 @@ export default function CustomersPage() {
 
     // ── 3. TABLE ───────────────────────────────────────────────────
     const cols = [
-      { label: "Customer Name",   x: mL,      w: 60 },
-      { label: "Mobile Number",   x: 75,      w: 45 },
-      { label: "Net Balance",     x: 130,     w: 35 },
-      { label: "Status",          x: 175,     w: 23 },
+      { label: "Customer Name",   x: mL,      w: 80 },
+      { label: "Mobile Number",   x: 95,      w: 50 },
+      { label: "Net Balance",     x: 155,     w: 43 },
     ];
 
     const rowH = 7;
@@ -164,10 +163,9 @@ export default function CustomersPage() {
       const isCr = bal > 0;
 
       const rowData = [
-        cust.name.slice(0, 32),
+        cust.name.slice(0, 42),
         cust.phone || "-",
         rs(bal),
-        isCr ? "Credit (Cr)" : "Debit (Dr)",
       ];
 
       doc.setFont("helvetica", "normal");
@@ -175,8 +173,6 @@ export default function CustomersPage() {
 
       rowData.forEach((val, i) => {
         if (i === 2) {
-          doc.setTextColor(isCr ? 195 : 4, isCr ? 28 : 128, isCr ? 28 : 80);
-        } else if (i === 3) {
           doc.setTextColor(isCr ? 195 : 4, isCr ? 28 : 128, isCr ? 28 : 80);
         } else {
           doc.setTextColor(30, 41, 59);

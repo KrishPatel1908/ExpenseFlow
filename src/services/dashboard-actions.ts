@@ -29,23 +29,28 @@ async function getRequiredUserId() {
 export async function getDashboardStats(startDate?: string, endDate?: string) {
   try {
     const userId = await getRequiredUserId();
-    const now = new Date();
-    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const creditQuery = sql`
+      SELECT COALESCE(SUM(credit), 0) 
+      FROM expenses 
+      WHERE user_id = ${userId}
+        ${startDate ? sql`AND date >= ${new Date(startDate).toISOString()}::timestamptz` : sql``}
+        ${endDate ? sql`AND date <= ${new Date(endDate).toISOString()}::timestamptz` : sql``}
+    `;
+
+    const debitQuery = sql`
+      SELECT COALESCE(SUM(debit), 0) 
+      FROM expenses 
+      WHERE user_id = ${userId}
+        ${startDate ? sql`AND date >= ${new Date(startDate).toISOString()}::timestamptz` : sql``}
+        ${endDate ? sql`AND date <= ${new Date(endDate).toISOString()}::timestamptz` : sql``}
+    `;
 
     const result = await db.execute(sql`
       SELECT 
         (SELECT COUNT(*)::int FROM customers WHERE user_id = ${userId}) as customer_count,
-        (SELECT COALESCE(SUM(credit), 0) 
-         FROM expenses 
-         WHERE user_id = ${userId}
-           AND date >= ${start.toISOString()}::timestamptz 
-           AND date <= ${end.toISOString()}::timestamptz)::numeric as total_credit,
-        (SELECT COALESCE(SUM(debit), 0) 
-         FROM expenses 
-         WHERE user_id = ${userId}
-           AND date >= ${start.toISOString()}::timestamptz 
-           AND date <= ${end.toISOString()}::timestamptz)::numeric as total_debit
+        (${creditQuery})::numeric as total_credit,
+        (${debitQuery})::numeric as total_debit
     `);
 
     const stats = (result[0] as unknown) as StatsQueryResult | undefined;
@@ -69,19 +74,15 @@ export async function getDashboardStats(startDate?: string, endDate?: string) {
 export async function getMonthlyTrend(startDate?: string, endDate?: string) {
   try {
     const userId = await getRequiredUserId();
-    const now = new Date();
-    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), 0, 1);
-    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
 
-    // Trend shows net balance (debit - credit) over months for this user
     const results = await db.execute(sql`
       SELECT
         EXTRACT(MONTH FROM date)::int as month_num,
         COALESCE(SUM(debit - credit), 0)::numeric as total_amount
       FROM expenses
       WHERE user_id = ${userId}
-        AND date >= ${start.toISOString()}::timestamptz
-        AND date <= ${end.toISOString()}::timestamptz
+        ${startDate ? sql`AND date >= ${new Date(startDate).toISOString()}::timestamptz` : sql``}
+        ${endDate ? sql`AND date <= ${new Date(endDate).toISOString()}::timestamptz` : sql``}
       GROUP BY EXTRACT(MONTH FROM date)
       ORDER BY month_num
     `);
@@ -112,9 +113,14 @@ export async function getMonthlyTrend(startDate?: string, endDate?: string) {
 export async function getRecentExpenses(startDate?: string, endDate?: string) {
   try {
     const userId = await getRequiredUserId();
-    const now = new Date();
-    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    const whereConditions = [eq(expenses.userId, userId)];
+    if (startDate) {
+      whereConditions.push(sql`expenses.date >= ${new Date(startDate).toISOString()}::timestamptz`);
+    }
+    if (endDate) {
+      whereConditions.push(sql`expenses.date <= ${new Date(endDate).toISOString()}::timestamptz`);
+    }
 
     return await db
       .select({
@@ -127,12 +133,7 @@ export async function getRecentExpenses(startDate?: string, endDate?: string) {
       })
       .from(expenses)
       .innerJoin(customers, eq(expenses.customerId, customers.id))
-      .where(
-        and(
-          eq(expenses.userId, userId),
-          sql`expenses.date >= ${start.toISOString()}::timestamptz AND expenses.date <= ${end.toISOString()}::timestamptz`
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(expenses.date))
       .limit(5);
   } catch (error) {

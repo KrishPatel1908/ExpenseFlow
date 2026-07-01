@@ -137,7 +137,7 @@ const generateExpensesPDFDocument = async (
       new Date(expense.date).toLocaleDateString("en-IN"),
       creditV > 0 ? creditV.toLocaleString("en-IN") : "-",
       debitV  > 0 ? debitV.toLocaleString("en-IN")  : "-",
-      `${Math.abs(net).toLocaleString("en-IN")} ${net > 0 ? "Cr" : "Dr"}`,
+      Math.abs(net).toLocaleString("en-IN"),
       (expense.category || "Uncategorized").slice(0, 13),
     ];
 
@@ -192,7 +192,7 @@ const generateExpensesPDFDocument = async (
 
   // Net Balance Total
   doc.setTextColor(netBal >= 0 ? 195 : 4, netBal >= 0 ? 28 : 128, netBal >= 0 ? 28 : 80);
-  doc.text(`${Math.abs(netBal).toLocaleString("en-IN")} ${netBal >= 0 ? "Cr" : "Dr"}`, cols[5].x, y);
+  doc.text(Math.abs(netBal).toLocaleString("en-IN"), cols[5].x, y);
 
   // "-" for Category
   doc.setTextColor(148, 163, 184);

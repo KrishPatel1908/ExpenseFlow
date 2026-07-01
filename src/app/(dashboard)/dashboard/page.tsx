@@ -7,6 +7,7 @@ import { LandingRedirect } from "@/components/landing-redirect";
 import { getDefaultLandingPage } from "@/services/auth-actions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { format } from "date-fns";
 
 export const revalidate = 0; // Fetch fresh data on every request
 
@@ -27,11 +28,18 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const { startDate, endDate } = await searchParams;
 
+  const now = new Date();
+  const defaultStart = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+  const defaultEnd = format(now, "yyyy-MM-dd");
+
+  const start = startDate || defaultStart;
+  const end = endDate || defaultEnd;
+
   // Fetch stats, trends, recent logs, and default landing page in parallel
   const [stats, trendData, recentExpenses, defaultLanding] = await Promise.all([
-    getDashboardStats(startDate, endDate),
-    getMonthlyTrend(startDate, endDate),
-    getRecentExpenses(startDate, endDate),
+    getDashboardStats(start, end),
+    getMonthlyTrend(start, end),
+    getRecentExpenses(start, end),
     getDefaultLandingPage()
   ]);
 
@@ -54,7 +62,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
         {/* Workable Date Range Picker */}
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
-          <DateRangePicker initialStartDate={startDate || ""} initialEndDate={endDate || ""} />
+          <DateRangePicker initialStartDate={start} initialEndDate={end} />
         </div>
       </div>
 

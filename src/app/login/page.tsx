@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { TrendingUp, Lock, Mail, Loader2 } from "lucide-react";
+import { Lock, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,11 +63,8 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-stone-100 px-6 py-12">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo and Header */}
+        {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b132a] text-white shadow-xs">
-            <TrendingUp className="h-6 w-6" />
-          </div>
           <h1 className="text-3xl font-bold tracking-tight text-stone-900">ExpenseFlow</h1>
           <p className="text-sm text-stone-500">Sign in to access the administrator panel.</p>
         </div>

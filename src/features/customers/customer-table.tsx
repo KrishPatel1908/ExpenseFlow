@@ -29,7 +29,7 @@ export function CustomerTable({
 }: CustomerTableProps) {
   return (
     <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">
-      <div className="overflow-auto max-h-[530px] sm:max-h-[480px]">
+      <div className="overflow-auto max-h-[340px] sm:max-h-[480px] lg:max-h-[530px]">
         {loading && customers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-slate-900" />

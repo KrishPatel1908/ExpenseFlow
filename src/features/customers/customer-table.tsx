@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Loader2, Phone, User } from "lucide-react";
+import { Edit2, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -81,16 +81,10 @@ export function CustomerTable({
                       </div>
                     </td>
                     <td className="px-6 py-3.5 font-medium text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span>{customer.name}</span>
-                      </div>
+                      {customer.name}
                     </td>
                     <td className="px-6 py-3.5 text-slate-500">
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span>{customer.phone}</span>
-                      </div>
+                      {customer.phone}
                     </td>
                     <td className={cn(
                       "px-6 py-3.5 font-bold",

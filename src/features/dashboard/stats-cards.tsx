@@ -33,7 +33,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       orderClass: "order-1 lg:order-1"
     },
     {
-      title: "TOTAL CREDITED",
+      title: "TOTAL CREDIT",
       value: formatCurrency(stats.totalCredit),
       icon: TrendingUp,
       iconColor: "text-red-600 bg-red-50/50 border border-red-100",
@@ -42,7 +42,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       orderClass: "order-3 lg:order-2"
     },
     {
-      title: "TOTAL DEBITED",
+      title: "TOTAL DEBIT",
       value: formatCurrency(stats.totalDebit),
       icon: TrendingDown,
       iconColor: "text-emerald-700 bg-emerald-50/50 border border-emerald-150",

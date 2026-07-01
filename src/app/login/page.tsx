@@ -26,6 +26,11 @@ export default function LoginPage() {
       }
     };
     checkUser();
+
+    // Prefetch main routes in background to make transitions instant
+    router.prefetch("/dashboard");
+    router.prefetch("/expenses");
+    router.prefetch("/customers");
   }, [router]);
 
   const {

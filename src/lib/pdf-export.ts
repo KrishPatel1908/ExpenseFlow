@@ -328,8 +328,8 @@ const generateCustomerPDFDocument = async (dataToExport: CustomerForPDF[], title
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text("TOTAL CUSTOMERS",  mL,       26);
-  doc.text("TOTAL PAYABLE (CR)",  78,    26);
-  doc.text("TOTAL RECEIVABLE (DR)", 134, 26);
+  doc.text("TOTAL CREDITED",  78,    26);
+  doc.text("TOTAL DEBITED", 134, 26);
   doc.text("NET BALANCE",   pageW - mL, 26, { align: "right" });
 
   doc.setFont("helvetica", "bold");

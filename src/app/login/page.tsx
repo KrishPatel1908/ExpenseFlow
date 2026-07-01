@@ -51,7 +51,6 @@ export default function LoginPage() {
         toast.success("Logged in successfully!");
         sessionStorage.removeItem("has_redirected");
         router.push("/dashboard");
-        router.refresh();
       }
     } catch {
       toast.error("An unexpected error occurred. Please try again.");

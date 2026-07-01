@@ -178,57 +178,59 @@ export default function ExpensesPage() {
       const rs = (val: number) => `Rs. ${Math.abs(val).toLocaleString("en-IN")}`;
       const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : "All dates";
 
-      // ── 1. HEADER ──────────────────────────────────────────────────
-      doc.setFillColor(11, 19, 42);
-      doc.rect(0, 0, pageW, 24, "F");
-
-      doc.setTextColor(255, 255, 255);
+      // ── 1. HEADER (White background with dark slate text) ──────────
+      doc.setTextColor(11, 19, 42);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("ExpenseFlow", mL, 11);
 
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(160, 185, 215);
-      doc.text("Expense Report", mL + 42, 11);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Filtered Customer Record", mL + 32, 11);
 
       doc.setFontSize(7);
-      doc.setTextColor(130, 160, 200);
-      doc.text(`Period: ${dateRange}`, mL, 19);
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 19, { align: "right" });
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Period: ${dateRange}`, mL, 18);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 18, { align: "right" });
 
-      // ── 2. SUMMARY STRIP (2 rows, 4 columns) ──────────────────────
-      doc.setFillColor(238, 242, 250);
-      doc.rect(0, 24, pageW, 22, "F");
+      // Clean header underline
+      doc.setDrawColor(226, 232, 240);
+      doc.line(mL, 21, pageW - mL, 21);
 
+      // ── 2. SUMMARY STRIP (Tighter minimal spacing, white background) ──
       // Labels row
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
-      doc.setTextColor(110, 125, 148);
-      doc.text("TRANSACTIONS",  mL,       31);
-      doc.text("TOTAL CREDIT",  78,       31);
-      doc.text("TOTAL DEBIT",   134,      31);
-      doc.text("NET BALANCE",   pageW - mL, 31, { align: "right" });
+      doc.setTextColor(100, 116, 139);
+      doc.text("TRANSACTIONS",  mL,       26);
+      doc.text("TOTAL CREDIT",  78,       26);
+      doc.text("TOTAL DEBIT",   134,      26);
+      doc.text("NET BALANCE",   pageW - mL, 26, { align: "right" });
 
-      // Values row
+      // Values row (minimal vertical gap from label)
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
+      doc.setFontSize(9);
 
       doc.setTextColor(11, 19, 42);
-      doc.text(String(filteredExpenses.length), mL, 41);
+      doc.text(String(filteredExpenses.length), mL, 31);
 
       doc.setTextColor(195, 28, 28);
-      doc.text(rs(totalCredit), 78, 41);
+      doc.text(rs(totalCredit), 78, 31);
 
       doc.setTextColor(4, 128, 80);
-      doc.text(rs(totalDebit), 134, 41);
+      doc.text(rs(totalDebit), 134, 31);
 
       const netColor = netBalance >= 0 ? [195, 28, 28] : [4, 128, 80];
       doc.setTextColor(netColor[0], netColor[1], netColor[2]);
       doc.text(
         `${rs(netBalance)} ${netBalance > 0 ? "(Cr)" : "(Dr)"}`,
-        pageW - mL, 41, { align: "right" }
+        pageW - mL, 31, { align: "right" }
       );
+
+      // Summary section divider line
+      doc.setDrawColor(226, 232, 240);
+      doc.line(mL, 35, pageW - mL, 35);
 
       // ── 3. TABLE ───────────────────────────────────────────────────
       const cols = [
@@ -242,14 +244,14 @@ export default function ExpensesPage() {
       ];
 
       const rowH = 7;
-      let y = 56;
+      let y = 44; // tighter starting point
 
       const drawHeader = () => {
+        // Table header is the only part with blue background
         doc.setFillColor(11, 19, 42);
         doc.rect(mL, y - 5, tableW, rowH, "F");
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(7);
-        // Use "normal" weight — "bold" in jsPDF can cause letter-spacing artefacts
         doc.setFont("helvetica", "normal");
         cols.forEach(col => doc.text(col.label, col.x, y));
         y += rowH;
@@ -264,13 +266,8 @@ export default function ExpensesPage() {
           drawHeader();
         }
 
-        // Alternating zebra rows
-        const isEven = idx % 2 === 0;
-        doc.setFillColor(isEven ? 255 : 247, isEven ? 255 : 249, isEven ? 255 : 253);
-        doc.rect(mL, y - 4.5, tableW, rowH, "F");
-
-        // Subtle row divider
-        doc.setDrawColor(220, 226, 236);
+        // All table rows have white background (no fill rect), only subtle grid lines
+        doc.setDrawColor(241, 245, 249);
         doc.line(mL, y + 2.5, mL + tableW, y + 2.5);
 
         const net     = parseFloat(expense.netBalance);
@@ -305,11 +302,9 @@ export default function ExpensesPage() {
       const pageCount = doc.getNumberOfPages();
       for (let p = 1; p <= pageCount; p++) {
         doc.setPage(p);
-        doc.setFillColor(238, 242, 250);
-        doc.rect(0, 287, pageW, 10, "F");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
-        doc.setTextColor(120, 138, 162);
+        doc.setTextColor(148, 163, 184);
         doc.text("ExpenseFlow - Expense Report", mL, 293);
         doc.text(`Page ${p} of ${pageCount}`, pageW - mL, 293, { align: "right" });
       }
@@ -369,58 +364,59 @@ export default function ExpensesPage() {
       const rs = (val: number) => `Rs. ${Math.abs(val).toLocaleString("en-IN")}`;
       const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : "All dates";
 
-      // ── 1. HEADER ──────────────────────────────────────────────────
-      // Branded deep navy/slate header background matching our website theme (#0b132a)
-      doc.setFillColor(11, 19, 42);
-      doc.rect(0, 0, pageW, 24, "F");
-
-      doc.setTextColor(255, 255, 255);
+      // ── 1. HEADER (White background with dark slate text) ──────────
+      doc.setTextColor(11, 19, 42);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("ExpenseFlow", mL, 11);
 
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(160, 185, 215);
-      doc.text(title, mL + 42, 11);
+      doc.setTextColor(100, 116, 139);
+      doc.text(title, mL + 32, 11);
 
       doc.setFontSize(7);
-      doc.setTextColor(130, 160, 200);
-      doc.text(`Period: ${dateRange}`, mL, 19);
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 19, { align: "right" });
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Period: ${dateRange}`, mL, 18);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 18, { align: "right" });
 
-      // ── 2. SUMMARY STRIP (2 rows, 4 columns) ──────────────────────
-      doc.setFillColor(238, 242, 250);
-      doc.rect(0, 24, pageW, 22, "F");
+      // Clean header underline
+      doc.setDrawColor(226, 232, 240);
+      doc.line(mL, 21, pageW - mL, 21);
 
+      // ── 2. SUMMARY STRIP (Tighter minimal spacing, white background) ──
       // Labels row
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
-      doc.setTextColor(110, 125, 148);
-      doc.text("TRANSACTIONS",  mL,       31);
-      doc.text("TOTAL CREDIT",  78,       31);
-      doc.text("TOTAL DEBIT",   134,      31);
-      doc.text("NET BALANCE",   pageW - mL, 31, { align: "right" });
+      doc.setTextColor(100, 116, 139);
+      doc.text("TRANSACTIONS",  mL,       26);
+      doc.text("TOTAL CREDIT",  78,       26);
+      doc.text("TOTAL DEBIT",   134,      26);
+      doc.text("NET BALANCE",   pageW - mL, 26, { align: "right" });
 
-      // Values row
+      // Values row (minimal vertical gap from label)
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
+      doc.setFontSize(9);
 
       doc.setTextColor(11, 19, 42);
-      doc.text(String(dataToExport.length), mL, 41);
+      doc.text(String(dataToExport.length), mL, 31);
 
       doc.setTextColor(195, 28, 28);
-      doc.text(rs(totalCr), 78, 41);
+      doc.text(rs(totalCr), 78, 31);
 
       doc.setTextColor(4, 128, 80);
-      doc.text(rs(totalDb), 134, 41);
+      doc.text(rs(totalDb), 134, 31);
 
       const netColor = netBal >= 0 ? [195, 28, 28] : [4, 128, 80];
       doc.setTextColor(netColor[0], netColor[1], netColor[2]);
       doc.text(
         `${rs(netBal)} ${netBal > 0 ? "(Cr)" : "(Dr)"}`,
-        pageW - mL, 41, { align: "right" }
+        pageW - mL, 31, { align: "right" }
       );
+
+      // Summary section divider line
+      doc.setDrawColor(226, 232, 240);
+      doc.line(mL, 35, pageW - mL, 35);
 
       // ── 3. TABLE ───────────────────────────────────────────────────
       const cols = [
@@ -434,9 +430,10 @@ export default function ExpensesPage() {
       ];
 
       const rowH = 7;
-      let y = 56;
+      let y = 44; // tighter starting point
 
       const drawHeader = () => {
+        // Table header is the only part with blue background
         doc.setFillColor(11, 19, 42);
         doc.rect(mL, y - 5, tableW, rowH, "F");
         doc.setTextColor(255, 255, 255);
@@ -455,11 +452,8 @@ export default function ExpensesPage() {
           drawHeader();
         }
 
-        const isEven = idx % 2 === 0;
-        doc.setFillColor(isEven ? 255 : 247, isEven ? 255 : 249, isEven ? 255 : 253);
-        doc.rect(mL, y - 4.5, tableW, rowH, "F");
-
-        doc.setDrawColor(220, 226, 236);
+        // All table rows have white background (no fill rect), only subtle grid lines
+        doc.setDrawColor(241, 245, 249);
         doc.line(mL, y + 2.5, mL + tableW, y + 2.5);
 
         const net     = parseFloat(expense.netBalance);
@@ -494,11 +488,9 @@ export default function ExpensesPage() {
       const pageCount = doc.getNumberOfPages();
       for (let p = 1; p <= pageCount; p++) {
         doc.setPage(p);
-        doc.setFillColor(238, 242, 250);
-        doc.rect(0, 287, pageW, 10, "F");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
-        doc.setTextColor(120, 138, 162);
+        doc.setTextColor(148, 163, 184);
         doc.text("ExpenseFlow - Expense Report", mL, 293);
         doc.text(`Page ${p} of ${pageCount}`, pageW - mL, 293, { align: "right" });
       }
@@ -517,7 +509,7 @@ export default function ExpensesPage() {
   const handleExportFilteredPDF = () => {
     generateAndDownloadPDF(
       filteredExpenses,
-      "Filtered Expense Report",
+      "Filtered Customer Record",
       `expenses-filtered-${new Date().toISOString().split("T")[0]}.pdf`
     );
   };
@@ -526,7 +518,7 @@ export default function ExpensesPage() {
   const handleExportAllPDF = () => {
     generateAndDownloadPDF(
       expenses,
-      "Complete Ledger Report",
+      "All Customer Record",
       `expenses-all-${new Date().toISOString().split("T")[0]}.pdf`
     );
   };

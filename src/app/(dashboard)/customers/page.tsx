@@ -406,10 +406,10 @@ export default function CustomersPage() {
             <table className="w-full text-left border-collapse min-w-[600px] lg:min-w-full">
               <thead>
                 <tr className="sticky top-0 z-10 border-b border-slate-150 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 shadow-2xs">
-                  <th className="px-6 py-4 text-left w-28">Actions</th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Mobile</th>
-                  <th className="px-6 py-4 text-slate-800 font-bold">Net Balance</th>
+                  <th className="px-6 py-4 text-left w-[15%]">Actions</th>
+                  <th className="px-6 py-4 w-[30%]">Customer</th>
+                  <th className="px-6 py-4 w-[30%]">Mobile</th>
+                  <th className="px-6 py-4 text-slate-800 font-bold w-[25%]">Net Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm text-slate-700">

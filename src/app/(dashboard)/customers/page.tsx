@@ -129,9 +129,9 @@ export default function CustomersPage() {
 
     // ── 3. TABLE ───────────────────────────────────────────────────
     const cols = [
-      { label: "Customer Name",   x: mL,      w: 80 },
-      { label: "Mobile Number",   x: 95,      w: 50 },
-      { label: "Net Balance",     x: 155,     w: 43 },
+      { label: "Customer Name",   x: mL,      w: 70 },
+      { label: "Mobile Number",   x: 82,      w: 70 },
+      { label: "Net Balance",     x: 152,     w: 46 },
     ];
 
     const rowH = 7;

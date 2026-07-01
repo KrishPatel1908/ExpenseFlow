@@ -170,19 +170,19 @@ export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
       />
       <aside
         className={cn(
-          "fixed bottom-0 top-0 left-0 z-50 w-64 bg-white border-r border-slate-100 p-5 transition-transform flex h-screen flex-col lg:translate-x-0 lg:static",
+          "fixed bottom-0 top-0 left-0 z-50 w-64 bg-white border-r border-slate-100 p-4 lg:p-5 transition-transform flex h-[100dvh] lg:h-screen flex-col lg:translate-x-0 lg:static",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo and branding */}
-        <div className="flex flex-col px-2 mb-8">
+        <div className="flex flex-col px-2 mb-5 lg:mb-8">
           <Link href="/dashboard" prefetch={false} className="flex items-center gap-3 font-bold tracking-tight text-[#0b132a]">
             <span className="text-[#0b132a] font-black text-xl tracking-tight">ExpenseFlow</span>
           </Link>
         </div>
 
         {/* Sidebar Nav Links */}
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-1.5 lg:space-y-2">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const isStarred = starredPath === item.href;
@@ -200,7 +200,7 @@ export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
                   prefetch={false}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    "flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer",
+                    "flex-1 flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer lg:py-2.5",
                     isActive ? "text-blue-600 font-bold" : "text-slate-500 hover:text-slate-900"
                   )}
                 >
@@ -232,8 +232,8 @@ export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
         </nav>
 
         {/* User profile */}
-        <div className="border-t border-slate-100 pt-4 mt-auto">
-          <div className="flex items-center gap-3 px-1 py-2 mb-3">
+        <div className="border-t border-slate-100 pt-3 lg:pt-4 mt-auto">
+          <div className="flex items-center gap-3 px-1 py-1.5 lg:py-2 mb-2 lg:mb-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0b132a] text-xs font-bold text-white shadow-sm shrink-0">
               AD
             </div>

@@ -343,55 +343,192 @@ export default function ExpensesPage() {
   };
 
 
-  // Helper to generate and download CSV
-  const downloadCSV = (dataToExport: Expense[], filename: string) => {
-    const headers = ["Customer", "Mobile", "Category", "Credit (₹)", "Debit (₹)", "Net Balance (₹)", "Date", "Note"];
-    const rows = dataToExport.map((expense) => {
-      const net = parseFloat(expense.netBalance);
-      return [
-        expense.customerName,
-        expense.customerPhone || "-",
-        expense.category || "Uncategorized",
-        expense.credit.toString(),
-        expense.debit.toString(),
-        `${net > 0 ? "Credit " : "Debit "}${Math.abs(net)}`,
-        format(expense.date, "yyyy-MM-dd"),
-        expense.note || "",
+  // Helper to generate and download PDF
+  const generateAndDownloadPDF = async (dataToExport: Expense[], title: string, filename: string) => {
+    if (dataToExport.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+
+    try {
+      toast.loading("Generating PDF...", { id: "pdf-gen" });
+
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const pageW  = 210;
+      const mL     = 12;   // left margin
+      const tableW = pageW - mL * 2;
+
+      // Calculate totals for the specific data being exported
+      const totalCr = dataToExport.reduce((sum, exp) => sum + parseFloat(exp.credit), 0);
+      const totalDb = dataToExport.reduce((sum, exp) => sum + parseFloat(exp.debit), 0);
+      const netBal = totalCr - totalDb;
+
+      // jsPDF built-in Helvetica does NOT support ₹ — use Rs. instead
+      const rs = (val: number) => `Rs. ${Math.abs(val).toLocaleString("en-IN")}`;
+      const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : "All dates";
+
+      // ── 1. HEADER ──────────────────────────────────────────────────
+      // Branded deep navy/slate header background matching our website theme (#0b132a)
+      doc.setFillColor(11, 19, 42);
+      doc.rect(0, 0, pageW, 24, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("ExpenseFlow", mL, 11);
+
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(160, 185, 215);
+      doc.text(title, mL + 42, 11);
+
+      doc.setFontSize(7);
+      doc.setTextColor(130, 160, 200);
+      doc.text(`Period: ${dateRange}`, mL, 19);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 19, { align: "right" });
+
+      // ── 2. SUMMARY STRIP (2 rows, 4 columns) ──────────────────────
+      doc.setFillColor(238, 242, 250);
+      doc.rect(0, 24, pageW, 22, "F");
+
+      // Labels row
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(110, 125, 148);
+      doc.text("TRANSACTIONS",  mL,       31);
+      doc.text("TOTAL CREDIT",  78,       31);
+      doc.text("TOTAL DEBIT",   134,      31);
+      doc.text("NET BALANCE",   pageW - mL, 31, { align: "right" });
+
+      // Values row
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.setTextColor(11, 19, 42);
+      doc.text(String(dataToExport.length), mL, 41);
+
+      doc.setTextColor(195, 28, 28);
+      doc.text(rs(totalCr), 78, 41);
+
+      doc.setTextColor(4, 128, 80);
+      doc.text(rs(totalDb), 134, 41);
+
+      const netColor = netBal >= 0 ? [195, 28, 28] : [4, 128, 80];
+      doc.setTextColor(netColor[0], netColor[1], netColor[2]);
+      doc.text(
+        `${rs(netBal)} ${netBal > 0 ? "(Cr)" : "(Dr)"}`,
+        pageW - mL, 41, { align: "right" }
+      );
+
+      // ── 3. TABLE ───────────────────────────────────────────────────
+      const cols = [
+        { label: "Customer",  x: mL,   w: 36 },
+        { label: "Mobile",    x: 50,   w: 26 },
+        { label: "Date",      x: 78,   w: 22 },
+        { label: "Credit",    x: 102,  w: 22 },
+        { label: "Debit",     x: 126,  w: 22 },
+        { label: "Net Bal",   x: 150,  w: 26 },
+        { label: "Category",  x: 178,  w: 20 },
       ];
-    });
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(",")),
-    ].join("\n");
+      const rowH = 7;
+      let y = 56;
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const drawHeader = () => {
+        doc.setFillColor(11, 19, 42);
+        doc.rect(mL, y - 5, tableW, rowH, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        cols.forEach(col => doc.text(col.label, col.x, y));
+        y += rowH;
+      };
+
+      drawHeader();
+
+      dataToExport.forEach((expense, idx) => {
+        if (y > 275) {
+          doc.addPage();
+          y = 16;
+          drawHeader();
+        }
+
+        const isEven = idx % 2 === 0;
+        doc.setFillColor(isEven ? 255 : 247, isEven ? 255 : 249, isEven ? 255 : 253);
+        doc.rect(mL, y - 4.5, tableW, rowH, "F");
+
+        doc.setDrawColor(220, 226, 236);
+        doc.line(mL, y + 2.5, mL + tableW, y + 2.5);
+
+        const net     = parseFloat(expense.netBalance);
+        const creditV = parseFloat(expense.credit);
+        const debitV  = parseFloat(expense.debit);
+
+        const rowData = [
+          expense.customerName.slice(0, 18),
+          expense.customerPhone || "-",
+          new Date(expense.date).toLocaleDateString("en-IN"),
+          creditV > 0 ? creditV.toLocaleString("en-IN") : "-",
+          debitV  > 0 ? debitV.toLocaleString("en-IN")  : "-",
+          `${Math.abs(net).toLocaleString("en-IN")} ${net > 0 ? "Cr" : "Dr"}`,
+          (expense.category || "Uncategorized").slice(0, 13),
+        ];
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.8);
+
+        rowData.forEach((val, i) => {
+          if      (i === 3 && creditV > 0) doc.setTextColor(195, 28, 28);
+          else if (i === 4 && debitV  > 0) doc.setTextColor(4, 128, 80);
+          else if (i === 5)                doc.setTextColor(net > 0 ? 195 : 4, net > 0 ? 28 : 128, net > 0 ? 28 : 80);
+          else                             doc.setTextColor(30, 41, 59);
+          doc.text(String(val), cols[i].x, y);
+        });
+
+        y += rowH;
+      });
+
+      // ── 4. FOOTER ─────────────────────────────────────────────────
+      const pageCount = doc.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setFillColor(238, 242, 250);
+        doc.rect(0, 287, pageW, 10, "F");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(120, 138, 162);
+        doc.text("ExpenseFlow - Expense Report", mL, 293);
+        doc.text(`Page ${p} of ${pageCount}`, pageW - mL, 293, { align: "right" });
+      }
+
+      toast.dismiss("pdf-gen");
+      doc.save(filename);
+      toast.success("PDF exported successfully!");
+    } catch (err) {
+      toast.dismiss("pdf-gen");
+      console.error(err);
+      toast.error("Failed to generate PDF.");
+    }
   };
 
   // Export 1: Only the filtered data showing on screen
-  const handleExportFilteredCSV = () => {
-    downloadCSV(
+  const handleExportFilteredPDF = () => {
+    generateAndDownloadPDF(
       filteredExpenses,
-      `expenses-filtered-${new Date().toISOString().split("T")[0]}.csv`
+      "Filtered Expense Report",
+      `expenses-filtered-${new Date().toISOString().split("T")[0]}.pdf`
     );
-    toast.success("Current filtered view exported successfully.");
   };
 
   // Export 2: All data in the database
-  const handleExportAllCSV = () => {
-    downloadCSV(
+  const handleExportAllPDF = () => {
+    generateAndDownloadPDF(
       expenses,
-      `expenses-all-${new Date().toISOString().split("T")[0]}.csv`
+      "Complete Ledger Report",
+      `expenses-all-${new Date().toISOString().split("T")[0]}.pdf`
     );
-    toast.success("Complete ledger exported successfully.");
   };
 
   const filteredExpenses = expenses.filter(expense => {
@@ -445,16 +582,16 @@ export default function ExpensesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           <Button
-            onClick={handleExportFilteredCSV}
+            onClick={handleExportFilteredPDF}
             variant="outline"
             className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2 cursor-pointer"
             disabled={filteredExpenses.length === 0}
           >
             <Download className="h-4 w-4" />
-            <span>Export Current View</span>
+            <span>Export Filter Customer</span>
           </Button>
           <Button
-            onClick={handleExportAllCSV}
+            onClick={handleExportAllPDF}
             variant="outline"
             className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2 cursor-pointer"
             disabled={expenses.length === 0}

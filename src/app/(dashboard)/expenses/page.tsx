@@ -167,122 +167,167 @@ export default function ExpensesPage() {
     try {
       toast.loading("Generating PDF...", { id: "pdf-gen" });
 
-      // Dynamically import jsPDF to avoid SSR issues
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-      // --- PDF Header ---
+      const pageW  = 210;
+      const mL     = 12;   // left margin
+      const tableW = pageW - mL * 2;
+
+      // jsPDF built-in Helvetica does NOT support ₹ — use Rs. instead
+      const rs = (val: number) => `Rs. ${Math.abs(val).toLocaleString("en-IN")}`;
+      const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : "All dates";
+
+      // ── 1. HEADER ──────────────────────────────────────────────────
       doc.setFillColor(11, 19, 42);
-      doc.rect(0, 0, 210, 22, "F");
+      doc.rect(0, 0, pageW, 24, "F");
+
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("ExpenseFlow — Expense Report", 14, 14);
+      doc.text("ExpenseFlow", mL, 11);
 
-      // Date range subtitle
-      doc.setFontSize(8);
+      doc.setFontSize(8.5);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 190, 210);
-      const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : "All dates";
-      doc.text(`Period: ${dateRange}   |   Generated: ${new Date().toLocaleDateString("en-IN")}`, 14, 19);
+      doc.setTextColor(160, 185, 215);
+      doc.text("Expense Report", mL + 42, 11);
 
-      // --- Summary Strip ---
-      doc.setFillColor(245, 247, 250);
-      doc.rect(0, 22, 210, 14, "F");
-      doc.setTextColor(11, 19, 42);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Total Transactions: ${filteredExpenses.length}`, 14, 29);
-      doc.setTextColor(220, 38, 38);
-      doc.text(`Total Credit: ₹${totalCredit.toLocaleString("en-IN")}`, 70, 29);
-      doc.setTextColor(5, 150, 105);
-      doc.text(`Total Debit: ₹${totalDebit.toLocaleString("en-IN")}`, 130, 29);
-      doc.setTextColor(netBalance >= 0 ? 220 : 5, netBalance >= 0 ? 38 : 150, netBalance >= 0 ? 38 : 105);
-      doc.text(`Net: ₹${Math.abs(netBalance).toLocaleString("en-IN")} ${netBalance > 0 ? "(Cr)" : "(Dr)"}`, 172, 29);
-
-      // --- Table ---
-      const headers = ["Customer", "Mobile", "Date", "Credit (₹)", "Debit (₹)", "Net Bal", "Category"];
-      const colX = [14, 52, 78, 100, 124, 146, 172];
-      let y = 44;
-
-      // Table header row
-      doc.setFillColor(11, 19, 42);
-      doc.rect(14, y - 5, 182, 8, "F");
-      doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      headers.forEach((h, i) => doc.text(h, colX[i], y));
-      y += 5;
+      doc.setTextColor(130, 160, 200);
+      doc.text(`Period: ${dateRange}`, mL, 19);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageW - mL, 19, { align: "right" });
 
-      // Table rows
+      // ── 2. SUMMARY STRIP (2 rows, 4 columns) ──────────────────────
+      doc.setFillColor(238, 242, 250);
+      doc.rect(0, 24, pageW, 22, "F");
+
+      // Labels row
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(110, 125, 148);
+      doc.text("TRANSACTIONS",  mL,       31);
+      doc.text("TOTAL CREDIT",  78,       31);
+      doc.text("TOTAL DEBIT",   134,      31);
+      doc.text("NET BALANCE",   pageW - mL, 31, { align: "right" });
+
+      // Values row
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.setTextColor(11, 19, 42);
+      doc.text(String(filteredExpenses.length), mL, 41);
+
+      doc.setTextColor(195, 28, 28);
+      doc.text(rs(totalCredit), 78, 41);
+
+      doc.setTextColor(4, 128, 80);
+      doc.text(rs(totalDebit), 134, 41);
+
+      const netColor = netBalance >= 0 ? [195, 28, 28] : [4, 128, 80];
+      doc.setTextColor(netColor[0], netColor[1], netColor[2]);
+      doc.text(
+        `${rs(netBalance)} ${netBalance > 0 ? "(Cr)" : "(Dr)"}`,
+        pageW - mL, 41, { align: "right" }
+      );
+
+      // ── 3. TABLE ───────────────────────────────────────────────────
+      const cols = [
+        { label: "Customer",  x: mL,   w: 36 },
+        { label: "Mobile",    x: 50,   w: 26 },
+        { label: "Date",      x: 78,   w: 22 },
+        { label: "Credit",    x: 102,  w: 22 },
+        { label: "Debit",     x: 126,  w: 22 },
+        { label: "Net Bal",   x: 150,  w: 26 },
+        { label: "Category",  x: 178,  w: 20 },
+      ];
+
+      const rowH = 7;
+      let y = 56;
+
+      const drawHeader = () => {
+        doc.setFillColor(11, 19, 42);
+        doc.rect(mL, y - 5, tableW, rowH, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        // Use "normal" weight — "bold" in jsPDF can cause letter-spacing artefacts
+        doc.setFont("helvetica", "normal");
+        cols.forEach(col => doc.text(col.label, col.x, y));
+        y += rowH;
+      };
+
+      drawHeader();
+
       filteredExpenses.forEach((expense, idx) => {
         if (y > 275) {
           doc.addPage();
-          y = 20;
-          // Re-draw header on new page
-          doc.setFillColor(11, 19, 42);
-          doc.rect(14, y - 5, 182, 8, "F");
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(7);
-          doc.setFont("helvetica", "bold");
-          headers.forEach((h, i) => doc.text(h, colX[i], y));
-          y += 5;
+          y = 16;
+          drawHeader();
         }
 
+        // Alternating zebra rows
         const isEven = idx % 2 === 0;
-        doc.setFillColor(isEven ? 252 : 248, isEven ? 252 : 249, isEven ? 253 : 252);
-        doc.rect(14, y - 3.5, 182, 7, "F");
+        doc.setFillColor(isEven ? 255 : 247, isEven ? 255 : 249, isEven ? 255 : 253);
+        doc.rect(mL, y - 4.5, tableW, rowH, "F");
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.5);
-        doc.setTextColor(30, 41, 59);
+        // Subtle row divider
+        doc.setDrawColor(220, 226, 236);
+        doc.line(mL, y + 2.5, mL + tableW, y + 2.5);
 
-        const net = parseFloat(expense.netBalance);
-        const creditVal = parseFloat(expense.credit);
-        const debitVal = parseFloat(expense.debit);
+        const net     = parseFloat(expense.netBalance);
+        const creditV = parseFloat(expense.credit);
+        const debitV  = parseFloat(expense.debit);
 
         const rowData = [
           expense.customerName.slice(0, 18),
-          expense.customerPhone || "—",
+          expense.customerPhone || "-",
           new Date(expense.date).toLocaleDateString("en-IN"),
-          creditVal > 0 ? creditVal.toLocaleString("en-IN") : "—",
-          debitVal > 0 ? debitVal.toLocaleString("en-IN") : "—",
+          creditV > 0 ? creditV.toLocaleString("en-IN") : "-",
+          debitV  > 0 ? debitV.toLocaleString("en-IN")  : "-",
           `${Math.abs(net).toLocaleString("en-IN")} ${net > 0 ? "Cr" : "Dr"}`,
-          (expense.category || "Uncategorized").slice(0, 14),
+          (expense.category || "Uncategorized").slice(0, 13),
         ];
 
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.8);
+
         rowData.forEach((val, i) => {
-          // Colour the credit/debit/net columns
-          if (i === 3 && creditVal > 0) doc.setTextColor(220, 38, 38);
-          else if (i === 4 && debitVal > 0) doc.setTextColor(5, 150, 105);
-          else if (i === 5) doc.setTextColor(net > 0 ? 220 : 5, net > 0 ? 38 : 150, net > 0 ? 38 : 105);
-          else doc.setTextColor(30, 41, 59);
-          doc.text(String(val), colX[i], y);
+          if      (i === 3 && creditV > 0) doc.setTextColor(195, 28, 28);
+          else if (i === 4 && debitV  > 0) doc.setTextColor(4, 128, 80);
+          else if (i === 5)                doc.setTextColor(net > 0 ? 195 : 4, net > 0 ? 28 : 128, net > 0 ? 28 : 80);
+          else                             doc.setTextColor(30, 41, 59);
+          doc.text(String(val), cols[i].x, y);
         });
 
-        y += 7;
+        y += rowH;
       });
 
-      // --- Footer ---
+      // ── 4. FOOTER ─────────────────────────────────────────────────
       const pageCount = doc.getNumberOfPages();
       for (let p = 1; p <= pageCount; p++) {
         doc.setPage(p);
-        doc.setFontSize(6.5);
+        doc.setFillColor(238, 242, 250);
+        doc.rect(0, 287, pageW, 10, "F");
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(150, 160, 180);
-        doc.text(`Page ${p} of ${pageCount}  •  ExpenseFlow`, 14, 292);
+        doc.setFontSize(6.5);
+        doc.setTextColor(120, 138, 162);
+        doc.text("ExpenseFlow - Expense Report", mL, 293);
+        doc.text(`Page ${p} of ${pageCount}`, pageW - mL, 293, { align: "right" });
       }
 
-      // Convert to Blob and share
+      // ── 5. SHARE ──────────────────────────────────────────────────
       const pdfBlob = doc.output("blob");
-      const pdfFile = new File([pdfBlob], `expenses-${dateRange.replace(/\s/g, "-")}.pdf`, { type: "application/pdf" });
+      const pdfFile = new File(
+        [pdfBlob],
+        `expenses-${dateRange.replace(/\s/g, "-")}.pdf`,
+        { type: "application/pdf" }
+      );
 
       toast.dismiss("pdf-gen");
 
       if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
         await navigator.share({
           files: [pdfFile],
-          title: "Expense Report — ExpenseFlow",
+          title: "Expense Report - ExpenseFlow",
           text: `Expense report for ${dateRange}`,
         });
         toast.success("PDF shared successfully!");
@@ -291,12 +336,12 @@ export default function ExpensesPage() {
       }
     } catch (err) {
       toast.dismiss("pdf-gen");
-      // User cancelled share — not an error
       if (err instanceof Error && err.name !== "AbortError") {
         toast.error("Failed to generate or share PDF.");
       }
     }
   };
+
 
   // Helper to generate and download CSV
   const downloadCSV = (dataToExport: Expense[], filename: string) => {

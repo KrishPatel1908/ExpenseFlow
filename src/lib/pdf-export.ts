@@ -155,6 +155,49 @@ const generateExpensesPDFDocument = async (
     y += rowH;
   });
 
+  // ── 3.5 TOTAL ROW (At bottom of table) ────────────────────────
+  if (y > 275) {
+    doc.addPage();
+    y = 16;
+    drawHeader();
+  }
+
+  // Draw separator line above totals
+  doc.setDrawColor(148, 163, 184);
+  doc.setLineWidth(0.4);
+  doc.line(mL, y - 2.5, mL + tableW, y - 2.5);
+  doc.setLineWidth(0.2); // reset line width
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+
+  // "Total"
+  doc.setTextColor(11, 19, 42);
+  doc.text("Total", cols[0].x, y);
+
+  // "-" for Mobile
+  doc.setTextColor(148, 163, 184);
+  doc.text("-", cols[1].x, y);
+
+  // "-" for Date
+  doc.text("-", cols[2].x, y);
+
+  // Credit Total
+  doc.setTextColor(195, 28, 28);
+  doc.text(totalCr.toLocaleString("en-IN"), cols[3].x, y);
+
+  // Debit Total
+  doc.setTextColor(4, 128, 80);
+  doc.text(totalDb.toLocaleString("en-IN"), cols[4].x, y);
+
+  // Net Balance Total
+  doc.setTextColor(netBal >= 0 ? 195 : 4, netBal >= 0 ? 28 : 128, netBal >= 0 ? 28 : 80);
+  doc.text(`${Math.abs(netBal).toLocaleString("en-IN")} ${netBal >= 0 ? "Cr" : "Dr"}`, cols[5].x, y);
+
+  // "-" for Category
+  doc.setTextColor(148, 163, 184);
+  doc.text("-", cols[6].x, y);
+
   // ── 4. FOOTER ─────────────────────────────────────────────────
   const pageCount = doc.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {

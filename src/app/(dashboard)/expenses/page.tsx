@@ -224,7 +224,7 @@ export default function ExpensesPage() {
       const netColor = netBalance >= 0 ? [195, 28, 28] : [4, 128, 80];
       doc.setTextColor(netColor[0], netColor[1], netColor[2]);
       doc.text(
-        `${rs(netBalance)} ${netBalance > 0 ? "(Cr)" : "(Dr)"}`,
+        rs(netBalance),
         pageW - mL, 31, { align: "right" }
       );
 
@@ -410,7 +410,7 @@ export default function ExpensesPage() {
       const netColor = netBal >= 0 ? [195, 28, 28] : [4, 128, 80];
       doc.setTextColor(netColor[0], netColor[1], netColor[2]);
       doc.text(
-        `${rs(netBal)} ${netBal > 0 ? "(Cr)" : "(Dr)"}`,
+        rs(netBal),
         pageW - mL, 31, { align: "right" }
       );
 

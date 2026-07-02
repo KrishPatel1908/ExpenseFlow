@@ -65,7 +65,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-stone-100 px-6 py-12">
+    <main className="flex h-full flex-col items-center justify-center bg-stone-100 px-6 py-12 overflow-y-auto">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">

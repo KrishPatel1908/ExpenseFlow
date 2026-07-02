@@ -79,8 +79,8 @@ export function ExpenseTable({
   const isTotalDebitRemaining = netBalance > 0;
 
   return (
-    <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">
-      <div className="overflow-auto max-h-[450px] sm:max-h-[480px] lg:max-h-[530px]">
+    <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs flex-initial flex flex-col min-h-0">
+      <div className="overflow-auto flex-1 min-h-0">
         {loading && expenses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-slate-900" />

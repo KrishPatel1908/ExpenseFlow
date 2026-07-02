@@ -188,7 +188,28 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="space-y-6 pb-2 sm:pb-0">
+    <div className="flex flex-col h-full min-h-0 space-y-6 pb-2 sm:pb-0">
+      {/* Dynamic Style Injection to lock layouts only for this page */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        html, body {
+          height: 100% !important;
+          overflow: hidden !important;
+        }
+        main {
+          overflow: hidden !important;
+          display: flex !important;
+          flex-direction: column !important;
+          height: 100% !important;
+        }
+        main > div {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 !important;
+          min-height: 0 !important;
+          width: 100% !important;
+        }
+      `}} />
+
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

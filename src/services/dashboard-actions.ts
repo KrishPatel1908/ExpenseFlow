@@ -110,17 +110,11 @@ export async function getMonthlyTrend(startDate?: string, endDate?: string) {
   }
 }
 
-export async function getRecentExpenses(startDate?: string, endDate?: string) {
+export async function getRecentExpenses() {
   try {
     const userId = await getRequiredUserId();
     
     const whereConditions = [eq(expenses.userId, userId)];
-    if (startDate) {
-      whereConditions.push(sql`expenses.date >= ${new Date(startDate).toISOString()}::timestamptz`);
-    }
-    if (endDate) {
-      whereConditions.push(sql`expenses.date <= ${new Date(endDate).toISOString()}::timestamptz`);
-    }
 
     return await db
       .select({

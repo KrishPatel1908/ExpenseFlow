@@ -39,7 +39,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const [stats, trendData, recentExpenses, defaultLanding] = await Promise.all([
     getDashboardStats(start, end),
     getMonthlyTrend(start, end),
-    getRecentExpenses(start, end),
+    getRecentExpenses(),
     getDefaultLandingPage()
   ]);
 

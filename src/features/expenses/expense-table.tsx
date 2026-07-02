@@ -1,8 +1,47 @@
+import { useState } from "react";
 import { Edit2, Trash2, Tag, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+interface ExpandableNoteProps {
+  note: string | null;
+}
+
+function ExpandableNote({ note }: ExpandableNoteProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (!note) return <span className="text-slate-400 italic">—</span>;
+  
+  const isLong = note.length > 25;
+  
+  if (!isLong) {
+    return <span className="text-slate-500">{note}</span>;
+  }
+  
+  return (
+    <div className="flex flex-col items-start gap-0.5">
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={cn(
+          "text-slate-550 text-xs transition-all duration-250 cursor-pointer hover:text-slate-900 leading-relaxed",
+          isExpanded ? "whitespace-normal break-words max-w-[240px]" : "truncate max-w-[140px]"
+        )}
+        title="Click to toggle full note"
+      >
+        {note}
+      </div>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0 cursor-pointer p-0"
+      >
+        {isExpanded ? "Show Less" : "Show More"}
+      </button>
+    </div>
+  );
+}
 
 export interface Expense {
   id: string;
@@ -36,8 +75,8 @@ export function ExpenseTable({
   // Calculate totals of filtered expenses for the sticky footer
   const totalCredit = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.credit), 0);
   const totalDebit = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.debit), 0);
-  const netBalance = totalCredit - totalDebit;
-  const isTotalCreditRemaining = netBalance > 0;
+  const netBalance = totalDebit - totalCredit;
+  const isTotalDebitRemaining = netBalance > 0;
 
   return (
     <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs">
@@ -59,8 +98,8 @@ export function ExpenseTable({
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Mobile</th>
                 <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4 text-red-600 font-bold">Credit</th>
-                <th className="px-6 py-4 text-emerald-700 font-bold">Debit</th>
+                <th className="px-6 py-4 text-emerald-700 font-bold">Credit</th>
+                <th className="px-6 py-4 text-red-600 font-bold">Debit</th>
                 <th className="px-6 py-4 text-slate-800 font-bold">Net Balance</th>
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4 text-left">Note</th>
@@ -71,13 +110,13 @@ export function ExpenseTable({
                 const creditVal = parseFloat(expense.credit);
                 const debitVal = parseFloat(expense.debit);
                 const custNetBal = parseFloat(expense.netBalance);
-                const custCreditRemains = custNetBal > 0;
+                const custDebitRemains = custNetBal > 0;
                 return (
                   <tr
                     key={expense.id}
                     className="hover:bg-slate-50/50 transition-colors h-[57px]"
                   >
-                    <td className="px-6 py-3.5 text-left">
+                    <td className="px-6 py-3.5 text-left align-top">
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
@@ -99,28 +138,30 @@ export function ExpenseTable({
                         </Button>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 font-medium text-slate-900">
+                    <td className="px-6 py-3.5 font-medium text-slate-900 align-top">
                       {expense.customerName}
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500">
+                    <td className="px-6 py-3.5 text-slate-500 align-top">
                       {expense.customerPhone || <span className="text-slate-400 italic">—</span>}
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500">
+                    <td className="px-6 py-3.5 text-slate-500 align-top">
                       {format(expense.date, "dd MMM yyyy")}
                     </td>
-                    <td className="px-6 py-3.5 font-bold text-red-600 bg-red-50/10">
+                    <td className="px-6 py-3.5 font-bold text-emerald-700 bg-emerald-50/10 align-top whitespace-nowrap">
                       {creditVal > 0 ? formatCurrency(expense.credit) : "—"}
                     </td>
-                    <td className="px-6 py-3.5 font-bold text-emerald-700 bg-emerald-50/10">
+                    <td className="px-6 py-3.5 font-bold text-red-600 bg-red-50/10 align-top whitespace-nowrap">
                       {debitVal > 0 ? formatCurrency(expense.debit) : "—"}
                     </td>
                     <td className={cn(
-                      "px-6 py-3.5 font-bold",
-                      custCreditRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
+                      "px-6 py-3.5 font-bold align-top whitespace-nowrap",
+                      custDebitRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                     )}>
-                      {formatCurrency(Math.abs(custNetBal))}
+                      {custDebitRemains 
+                        ? formatCurrency(-Math.abs(custNetBal)) 
+                        : formatCurrency(Math.abs(custNetBal))}
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500">
+                    <td className="px-6 py-3.5 text-slate-500 align-top">
                       {expense.category ? (
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
                           <Tag className="h-3 w-3" />
@@ -130,8 +171,8 @@ export function ExpenseTable({
                         <span className="text-slate-400 italic">Uncategorized</span>
                       )}
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500 max-w-xs truncate text-left">
-                      {expense.note || "-"}
+                    <td className="px-6 py-3.5 text-left align-top max-w-[220px]">
+                      <ExpandableNote note={expense.note} />
                     </td>
                   </tr>
                 );
@@ -144,17 +185,19 @@ export function ExpenseTable({
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>
-                <td className="px-6 py-3.5 text-red-600 font-extrabold bg-red-50/10">
+                <td className="px-6 py-3.5 text-emerald-700 font-extrabold bg-emerald-50/10 whitespace-nowrap">
                   {formatCurrency(totalCredit)}
                 </td>
-                <td className="px-6 py-3.5 text-emerald-700 font-extrabold bg-emerald-50/10">
+                <td className="px-6 py-3.5 text-red-600 font-extrabold bg-red-50/10 whitespace-nowrap">
                   {formatCurrency(totalDebit)}
                 </td>
                 <td className={cn(
-                  "px-6 py-3.5 font-extrabold",
-                  isTotalCreditRemaining ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
+                  "px-6 py-3.5 font-extrabold whitespace-nowrap",
+                  isTotalDebitRemaining ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                 )}>
-                  {formatCurrency(Math.abs(netBalance))}
+                  {isTotalDebitRemaining 
+                    ? formatCurrency(-Math.abs(netBalance)) 
+                    : formatCurrency(Math.abs(netBalance))}
                 </td>
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>

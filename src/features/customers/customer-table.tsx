@@ -52,7 +52,7 @@ export function CustomerTable({
             <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
               {filteredCustomers.map((customer) => {
                 const netBal = parseFloat(customer.netBalance);
-                const isCreditRemains = netBal > 0;
+                const isDebitRemains = netBal > 0;
                 return (
                   <tr
                     key={customer.id}
@@ -87,10 +87,12 @@ export function CustomerTable({
                       {customer.phone}
                     </td>
                     <td className={cn(
-                      "px-6 py-3.5 font-bold",
-                      isCreditRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
+                      "px-6 py-3.5 font-bold whitespace-nowrap",
+                      isDebitRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                     )}>
-                      {formatCurrency(Math.abs(netBal))}
+                      {isDebitRemains 
+                        ? formatCurrency(-Math.abs(netBal)) 
+                        : formatCurrency(Math.abs(netBal))}
                     </td>
                   </tr>
                 );

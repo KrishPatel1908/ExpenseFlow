@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Search, Download } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Search, Download, ChevronDown, FileText, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,6 +18,7 @@ import {
 import { getCustomersWithBalances, deleteCustomer, updateCustomer } from "@/services/expense-actions";
 import { CustomerTable, type Customer } from "@/features/customers/customer-table";
 import { exportCustomersPDF, shareCustomersPDFWhatsApp } from "@/lib/pdf-export";
+import { exportCustomersExcel } from "@/lib/excel-export";
 import { toast } from "sonner";
 
 export default function CustomersPage() {
@@ -37,6 +39,21 @@ export default function CustomersPage() {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Export Dropdown State
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setExportDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Debounce effect for search input (500ms delay)
   useEffect(() => {
@@ -143,18 +160,30 @@ export default function CustomersPage() {
   });
 
   // Export handlers
+  const getFilterDesc = () => {
+    return searchQuery ? `Search: "${searchQuery}"` : "";
+  };
+
   const handleExportPDF = () => {
     exportCustomersPDF(
       filteredCustomers,
-      "Customer Record",
+      getFilterDesc(),
       `customers-${new Date().toISOString().split("T")[0]}.pdf`
+    );
+  };
+
+  const handleExportExcel = () => {
+    exportCustomersExcel(
+      filteredCustomers,
+      `customers-${new Date().toISOString().split("T")[0]}.csv`,
+      searchQuery
     );
   };
 
   const handleShareWhatsApp = () => {
     shareCustomersPDFWhatsApp(
       filteredCustomers,
-      "Filtered Customer Record"
+      getFilterDesc()
     );
   };
 
@@ -167,30 +196,65 @@ export default function CustomersPage() {
           <p className="text-slate-500 mt-1">Manage unique customer profiles and view their net balances.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
-          {/* Download PDF button — Desktop & Mobile */}
-          <Button
-            onClick={handleExportPDF}
-            variant="outline"
-            className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2 cursor-pointer"
-            disabled={filteredCustomers.length === 0}
-          >
-            <Download className="h-4 w-4" />
-            <span>Download PDF</span>
-          </Button>
+          {/* Export Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <Button
+              onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+              variant="outline"
+              className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-medium gap-2 cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+              <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", exportDropdownOpen && "rotate-180")} />
+            </Button>
 
-          {/* WhatsApp Share Button — Mobile Only */}
-          <Button
-            onClick={handleShareWhatsApp}
-            variant="outline"
-            disabled={filteredCustomers.length === 0}
-            className="sm:hidden border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366] font-medium gap-2 cursor-pointer"
-            id="whatsapp-share-btn"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-            </svg>
-            <span>Share via WhatsApp</span>
-          </Button>
+            {exportDropdownOpen && (
+              <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                {/* 1. Mobile WhatsApp Option (TOP OF THE LIST ON MOBILE ONLY) */}
+                <div className="block sm:hidden border-b border-slate-100 pb-1.5 mb-1.5">
+                  <button
+                    onClick={() => {
+                      handleShareWhatsApp();
+                      setExportDropdownOpen(false);
+                    }}
+                    disabled={filteredCustomers.length === 0}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#25D366] hover:bg-[#25D366]/10 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    <span>Share via WhatsApp</span>
+                  </button>
+                </div>
+
+                {/* 2. Download Options */}
+                <div className="space-y-0.5">
+                  <button
+                    onClick={() => {
+                      handleExportPDF();
+                      setExportDropdownOpen(false);
+                    }}
+                    disabled={filteredCustomers.length === 0}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Download PDF</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExportExcel();
+                      setExportDropdownOpen(false);
+                    }}
+                    disabled={filteredCustomers.length === 0}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Download Excel</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

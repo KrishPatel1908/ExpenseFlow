@@ -57,7 +57,7 @@ export async function getDashboardStats(startDate?: string, endDate?: string) {
     const totalCustomers = stats?.customer_count ?? 0;
     const totalCredit = parseFloat(stats?.total_credit ?? "0");
     const totalDebit = parseFloat(stats?.total_debit ?? "0");
-    const netBalance = totalCredit - totalDebit;
+    const netBalance = totalDebit - totalCredit;
 
     return {
       totalCustomers,
@@ -78,7 +78,7 @@ export async function getMonthlyTrend(startDate?: string, endDate?: string) {
     const results = await db.execute(sql`
       SELECT
         EXTRACT(MONTH FROM date)::int as month_num,
-        COALESCE(SUM(debit - credit), 0)::numeric as total_amount
+        COALESCE(SUM(credit - debit), 0)::numeric as total_amount
       FROM expenses
       WHERE user_id = ${userId}
         ${startDate ? sql`AND date >= ${new Date(startDate).toISOString()}::timestamptz` : sql``}

@@ -28,7 +28,7 @@ export async function getExpenses() {
         category: expenses.category,
         credit: expenses.credit,
         debit: expenses.debit,
-        netBalance: sql<string>`SUM(CAST(${expenses.credit} AS NUMERIC) - CAST(${expenses.debit} AS NUMERIC)) OVER (
+        netBalance: sql<string>`SUM(CAST(${expenses.debit} AS NUMERIC) - CAST(${expenses.credit} AS NUMERIC)) OVER (
           PARTITION BY ${expenses.customerId}
           ORDER BY ${expenses.date} ASC, ${expenses.createdAt} ASC
         )::text`,
@@ -114,7 +114,7 @@ export async function createExpense(data: ExpenseInput) {
 
     const creditVal = validated.credit ?? 0;
     const debitVal = validated.debit ?? 0;
-    const netBalanceVal = creditVal - debitVal;
+    const netBalanceVal = debitVal - creditVal;
 
     // Always insert a new transaction record
     await db.insert(expenses).values({
@@ -179,7 +179,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
 
     const creditVal = validated.credit ?? 0;
     const debitVal = validated.debit ?? 0;
-    const netBalanceVal = creditVal - debitVal;
+    const netBalanceVal = debitVal - creditVal;
 
     await db
       .update(expenses)
@@ -256,7 +256,7 @@ export async function getCustomersWithBalances() {
         id: customers.id,
         name: customers.name,
         phone: customers.phone,
-        netBalance: sql<string>`COALESCE(SUM(CAST(${expenses.credit} AS NUMERIC) - CAST(${expenses.debit} AS NUMERIC)), 0)::text`,
+        netBalance: sql<string>`COALESCE(SUM(CAST(${expenses.debit} AS NUMERIC) - CAST(${expenses.credit} AS NUMERIC)), 0)::text`,
       })
       .from(customers)
       .leftJoin(expenses, eq(customers.id, expenses.customerId))

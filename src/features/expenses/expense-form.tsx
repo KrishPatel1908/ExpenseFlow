@@ -463,7 +463,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                 {/* Credit & Debit in a Row */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="expenseCredit" className="text-red-600 font-bold">Credit</Label>
+                    <Label htmlFor="expenseCredit" className="text-emerald-600 font-bold">Credit</Label>
                     <Input
                       id="expenseCredit"
                       type="number"
@@ -478,12 +478,12 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                           setExpenseDebit("0");
                         }
                       }}
-                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
+                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
                       required
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="expenseDebit" className="text-emerald-600 font-bold">Debit</Label>
+                    <Label htmlFor="expenseDebit" className="text-red-600 font-bold">Debit</Label>
                     <Input
                       id="expenseDebit"
                       type="number"
@@ -498,7 +498,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                           setExpenseCredit("0");
                         }
                       }}
-                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
+                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
                       required
                     />
                   </div>
@@ -638,7 +638,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                 {/* Credit & Debit in a Row */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="custCredit" className="text-red-600 font-bold">Credit</Label>
+                    <Label htmlFor="custCredit" className="text-emerald-600 font-bold">Credit</Label>
                     <Input
                       id="custCredit"
                       type="number"
@@ -653,12 +653,12 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                           setCustDebit("0");
                         }
                       }}
-                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
+                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
                       required
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="custDebit" className="text-emerald-600 font-bold">Debit</Label>
+                    <Label htmlFor="custDebit" className="text-red-600 font-bold">Debit</Label>
                     <Input
                       id="custDebit"
                       type="number"
@@ -673,7 +673,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                           setCustCredit("0");
                         }
                       }}
-                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
+                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
                       required
                     />
                   </div>

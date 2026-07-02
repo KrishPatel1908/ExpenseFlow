@@ -45,12 +45,12 @@ export function AnalyticsCharts({
     {
       name: "Credit",
       amount: totalCredit,
-      fill: "#f59e0b", // Amber
+      fill: "#10b981", // Emerald
     },
     {
       name: "Debit",
       amount: totalDebit,
-      fill: "#10b981", // Emerald
+      fill: "#f59e0b", // Amber
     },
   ];
 
@@ -74,11 +74,11 @@ export function AnalyticsCharts({
           </div>
           <div className="flex items-center gap-4 text-[10px] font-bold tracking-wider uppercase text-slate-400">
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
+              <span className="h-2 w-2 rounded-full bg-[#10b981]" />
               <span>Credit</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#10b981]" />
+              <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
               <span>Debit</span>
             </div>
           </div>

@@ -42,8 +42,8 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                 <tr className="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3 hidden sm:table-cell">Category</th>
-                  <th className="px-4 py-3 text-red-600">Credit</th>
-                  <th className="px-4 py-3 text-emerald-700">Debit</th>
+                  <th className="px-4 py-3 text-emerald-700">Credit</th>
+                  <th className="px-4 py-3 text-red-600">Debit</th>
                   <th className="px-4 py-3 hidden md:table-cell">Date</th>
                 </tr>
               </thead>
@@ -66,10 +66,10 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                         <span className="text-slate-400 italic text-xs">Uncategorized</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-red-600">
+                    <td className="px-4 py-3 font-semibold text-emerald-700 whitespace-nowrap">
                       {parseFloat(expense.credit) > 0 ? formatCurrency(expense.credit) : "—"}
                     </td>
-                    <td className="px-4 py-3 font-semibold text-emerald-700">
+                    <td className="px-4 py-3 font-semibold text-red-600 whitespace-nowrap">
                       {parseFloat(expense.debit) > 0 ? formatCurrency(expense.debit) : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-500 hidden md:table-cell">

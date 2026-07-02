@@ -20,7 +20,13 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen flex-col lg:flex-row bg-stone-100 overflow-hidden">
       {/* Sidebar Navigation */}
-      <Sidebar initialStarredPath={defaultLanding} />
+      <Sidebar
+        initialStarredPath={defaultLanding}
+        user={{
+          email: user.email,
+          name: user.user_metadata?.full_name || user.user_metadata?.name,
+        }}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto px-4 py-8 md:px-8 lg:px-12 overscroll-none">

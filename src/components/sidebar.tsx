@@ -48,9 +48,13 @@ const navItems = [
 
 interface SidebarProps {
   initialStarredPath?: string;
+  user?: {
+    email?: string;
+    name?: string;
+  };
 }
 
-export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
+export function Sidebar({ initialStarredPath = "/dashboard", user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -234,12 +238,35 @@ export function Sidebar({ initialStarredPath = "/dashboard" }: SidebarProps) {
         {/* User profile */}
         <div className="border-t border-slate-100 pt-3 lg:pt-4 mt-auto">
           <div className="flex items-center gap-3 px-1 py-1.5 lg:py-2 mb-2 lg:mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0b132a] text-xs font-bold text-white shadow-sm shrink-0">
-              AD
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0b132a] text-xs font-bold text-white shadow-sm shrink-0 select-none">
+              {(() => {
+                const email = user?.email || "admin@gmail.com";
+                const displayName = user?.name || 
+                  email.split("@")[0]
+                    .split(/[._-]/)
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ") || 
+                  "Admin User";
+                return displayName
+                  .split(" ")
+                  .map(word => word[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2) || "AD";
+              })()}
             </div>
             <div className="overflow-hidden flex-1 leading-tight">
-              <p className="text-xs font-extrabold text-slate-800 truncate">Admin User</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">admin@gmail.com</p>
+              <p className="text-xs font-extrabold text-slate-800 truncate">
+                {user?.name || (user?.email ? (
+                  user.email.split("@")[0]
+                    .split(/[._-]/)
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")
+                ) : "Admin User")}
+              </p>
+              <p className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate select-all" title={user?.email || "admin@gmail.com"}>
+                {user?.email || "admin@gmail.com"}
+              </p>
             </div>
           </div>
 

@@ -185,3 +185,51 @@ export async function changePassword(newPassword: string) {
     return { error: message };
   }
 }
+
+export async function getDefaultExportFormat() {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return "pdf";
+
+    const record = await db
+      .select({ defaultExportFormat: userPreferences.defaultExportFormat })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, user.id))
+      .limit(1);
+
+    return record[0]?.defaultExportFormat ?? "pdf";
+  } catch (error) {
+    console.error("Failed to get default export format:", error);
+    return "pdf";
+  }
+}
+
+export async function setDefaultExportFormat(format: string) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      throw new Error("Unauthorized access. Please sign in.");
+    }
+
+    await db
+      .insert(userPreferences)
+      .values({
+        userId: user.id,
+        defaultLandingPage: "/dashboard",
+        defaultExportFormat: format,
+      })
+      .onConflictDoUpdate({
+        target: userPreferences.userId,
+        set: { defaultExportFormat: format },
+      });
+
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Failed to set default export format:", error);
+    const message = error instanceof Error ? error.message : "Failed to update preference";
+    return { error: message };
+  }
+}
+

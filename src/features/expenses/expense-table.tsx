@@ -11,18 +11,18 @@ interface ExpandableNoteProps {
 
 function ExpandableNote({ note }: ExpandableNoteProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   if (!note) return <span className="text-slate-400 italic">—</span>;
-  
+
   const isLong = note.length > 25;
-  
+
   if (!isLong) {
     return <span className="text-slate-500">{note}</span>;
   }
-  
+
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <div 
+      <div
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
           "text-slate-550 text-xs transition-all duration-250 cursor-pointer hover:text-slate-900 leading-relaxed",
@@ -76,9 +76,7 @@ export function ExpenseTable({
   const totalCredit = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.credit), 0);
   const totalDebit = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.debit), 0);
   const netBalance = totalDebit - totalCredit;
-  const isTotalDebitRemaining = netBalance > 0;
-
-  return (
+  const isTotalDebitRemaining = netBalance > 0;  return (
     <Card className="border border-slate-200 bg-white overflow-hidden shadow-xs flex-initial flex flex-col min-h-0">
       <div className="overflow-auto flex-1 min-h-0">
         {loading && expenses.length === 0 ? (
@@ -122,7 +120,7 @@ export function ExpenseTable({
                           variant="ghost"
                           size="icon"
                           onClick={() => onEditClick(expense)}
-                          className="h-8 w-8 text-slate-500 hover:text-slate-950 hover:bg-slate-100 cursor-pointer"
+                          className="h-8 w-8 text-slate-500 hover:text-slate-955 hover:bg-slate-100 cursor-pointer"
                         >
                           <Edit2 className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
@@ -157,8 +155,8 @@ export function ExpenseTable({
                       "px-6 py-3.5 font-bold align-top whitespace-nowrap",
                       custDebitRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                     )}>
-                      {custDebitRemains 
-                        ? formatCurrency(-Math.abs(custNetBal)) 
+                      {custDebitRemains
+                        ? formatCurrency(-Math.abs(custNetBal))
                         : formatCurrency(Math.abs(custNetBal))}
                     </td>
                     <td className="px-6 py-3.5 text-slate-500 align-top">
@@ -195,8 +193,8 @@ export function ExpenseTable({
                   "px-6 py-3.5 font-extrabold whitespace-nowrap",
                   isTotalDebitRemaining ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                 )}>
-                  {isTotalDebitRemaining 
-                    ? formatCurrency(-Math.abs(netBalance)) 
+                  {isTotalDebitRemaining
+                    ? formatCurrency(-Math.abs(netBalance))
                     : formatCurrency(Math.abs(netBalance))}
                 </td>
                 <td className="px-6 py-3.5 text-slate-400 font-normal">—</td>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Filter, CalendarRange } from "lucide-react";
+import { Search, Filter, CalendarRange, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ExpenseFiltersProps {
@@ -31,13 +31,18 @@ export function ExpenseFilters({
 }: ExpenseFiltersProps) {
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const catFilterRef = useRef<HTMLDivElement>(null);
+  const typeFilterRef = useRef<HTMLDivElement>(null);
 
-  // Close category filter dropdown on click outside
+  // Close category and type filter dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (catFilterRef.current && !catFilterRef.current.contains(event.target as Node)) {
         setIsCatDropdownOpen(false);
+      }
+      if (typeFilterRef.current && !typeFilterRef.current.contains(event.target as Node)) {
+        setIsTypeDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -77,17 +82,66 @@ export function ExpenseFilters({
         isFiltersExpanded ? "grid animate-in fade-in slide-in-from-top-2" : "hidden sm:grid"
       )}>
         {/* Filter 1: Transaction Type */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 relative" ref={typeFilterRef}>
           <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Type</span>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as "all" | "credit" | "debit")}
-            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70"
+          <button
+            type="button"
+            onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-750 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70 flex items-center justify-between text-left"
           >
-            <option value="all">All Types</option>
-            <option value="credit">Credit Only</option>
-            <option value="debit">Debit Only</option>
-          </select>
+            <span>
+              {typeFilter === "all"
+                ? "All Types"
+                : typeFilter === "credit"
+                  ? "Credit Only"
+                  : "Debit Only"}
+            </span>
+            <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-200", isTypeDropdownOpen && "rotate-180")} />
+          </button>
+
+          {isTypeDropdownOpen && (
+            <div className="absolute z-50 w-full top-[58px] bg-white border border-slate-150 rounded-xl shadow-md p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("all");
+                  setIsTypeDropdownOpen(false);
+                }}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer",
+                  typeFilter === "all" ? "bg-[#0b132a] text-white font-semibold" : "text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                All Types
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("credit");
+                  setIsTypeDropdownOpen(false);
+                }}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer",
+                  typeFilter === "credit" ? "bg-[#0b132a] text-white font-semibold" : "text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                Credit Only
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("debit");
+                  setIsTypeDropdownOpen(false);
+                }}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer",
+                  typeFilter === "debit" ? "bg-[#0b132a] text-white font-semibold" : "text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                Debit Only
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filter 2: Category (Custom Dropdown) */}
@@ -99,7 +153,7 @@ export function ExpenseFilters({
             className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-750 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70 flex items-center justify-between text-left"
           >
             <span>{categoryFilter === "all" ? "All Categories" : categoryFilter}</span>
-            <span className="text-slate-400 text-[9px] ml-1">▼</span>
+            <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-200", isCatDropdownOpen && "rotate-180")} />
           </button>
 
           {isCatDropdownOpen && (
@@ -149,7 +203,7 @@ export function ExpenseFilters({
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70"
+            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-750 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70 [color-scheme:light]"
           />
         </div>
 
@@ -162,7 +216,7 @@ export function ExpenseFilters({
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70"
+            className="h-10 px-3 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 text-slate-750 focus:outline-none focus:ring-2 focus:ring-[#0b132a] cursor-pointer w-full transition-all hover:bg-slate-100/70 [color-scheme:light]"
           />
         </div>
       </div>

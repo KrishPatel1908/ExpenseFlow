@@ -64,7 +64,7 @@ export function CustomerTable({
                           variant="ghost"
                           size="icon"
                           onClick={() => onEditClick(customer)}
-                          className="h-8 w-8 text-slate-500 hover:text-slate-950 hover:bg-slate-100 cursor-pointer"
+                          className="h-8 w-8 text-slate-500 hover:text-slate-955 hover:bg-slate-100 cursor-pointer"
                         >
                           <Edit2 className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
@@ -90,8 +90,8 @@ export function CustomerTable({
                       "px-6 py-3.5 font-bold whitespace-nowrap",
                       isDebitRemains ? "text-red-600 bg-red-50/5" : "text-emerald-700 bg-emerald-50/5"
                     )}>
-                      {isDebitRemains 
-                        ? formatCurrency(-Math.abs(netBal)) 
+                      {isDebitRemains
+                        ? formatCurrency(-Math.abs(netBal))
                         : formatCurrency(Math.abs(netBal))}
                     </td>
                   </tr>

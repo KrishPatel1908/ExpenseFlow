@@ -11,7 +11,9 @@ import {
   X,
   LogOut,
   Star,
-  Key
+  Key,
+  Sun,
+  Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,7 +61,6 @@ export function Sidebar({ initialStarredPath = "/dashboard", user }: SidebarProp
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [starredPath, setStarredPath] = useState(initialStarredPath);
-
   // Change Password Dialog States
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -159,9 +160,11 @@ export function Sidebar({ initialStarredPath = "/dashboard", user }: SidebarProp
         <Link href="/dashboard" prefetch={false} className="flex items-center gap-2.5 font-bold tracking-tight">
           <span className="text-slate-900 font-extrabold text-base">ExpenseFlow</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="cursor-pointer">
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </header>
 
       {/* Mobile Navigation Drawer */}
@@ -241,11 +244,11 @@ export function Sidebar({ initialStarredPath = "/dashboard", user }: SidebarProp
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0b132a] text-xs font-bold text-white shadow-sm shrink-0 select-none">
               {(() => {
                 const email = user?.email || "admin@gmail.com";
-                const displayName = user?.name || 
+                const displayName = user?.name ||
                   email.split("@")[0]
                     .split(/[._-]/)
                     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(" ") || 
+                    .join(" ") ||
                   "Admin User";
                 return displayName
                   .split(" ")

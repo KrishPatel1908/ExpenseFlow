@@ -31,4 +31,5 @@ export const expenses = pgTable("expenses", {
 export const userPreferences = pgTable("user_preferences", {
   userId: uuid("user_id").primaryKey(),
   defaultLandingPage: text("default_landing_page").notNull().default("/dashboard"),
+  defaultExportFormat: text("default_export_format").notNull().default("pdf"),
 });

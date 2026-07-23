@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getCustomersWithBalances } from "@/services/expense-actions";
-import { type Customer } from "@/features/customers/customer-table";
+import { getCustomers, type CustomerWithStats } from "@/services/customer-actions";
 import { toast } from "sonner";
 
 export function useCustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -20,19 +19,24 @@ export function useCustomersPage() {
   const loadCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      setCustomers(await getCustomersWithBalances());
+      const res = await getCustomers({ search: debouncedSearchQuery });
+      setCustomers(res.customers);
     } catch {
       toast.error("Failed to load customers.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearchQuery]);
 
   useEffect(() => { loadCustomers(); }, [loadCustomers]);
 
   const filteredCustomers = customers.filter(c => {
     const q = debouncedSearchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(q) || c.phone.includes(q);
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.nickname && c.nickname.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q))
+    );
   });
 
   const isFilterApplied = searchQuery !== "";

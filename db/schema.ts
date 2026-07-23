@@ -1,14 +1,18 @@
-import { pgTable, uuid, text, varchar, numeric, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, varchar, numeric, timestamp, index } from "drizzle-orm/pg-core";
 
 export const customers = pgTable("customers", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
   name: text("name").notNull(),
-  phone: varchar("phone", { length: 20 }).notNull(),
+  nickname: text("nickname"),
+  phone: varchar("phone", { length: 20 }),
+  monthlyBudget: numeric("monthly_budget", { precision: 12, scale: 2 }).notNull().default("0"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ([
   index("customers_name_idx").on(table.name),
   index("customers_user_id_idx").on(table.userId),
-  unique("customers_user_id_phone_unique").on(table.userId, table.phone),
 ]));
 
 export const expenses = pgTable("expenses", {

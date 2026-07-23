@@ -13,7 +13,7 @@ export interface ExpenseForPDF {
 
 export interface CustomerForPDF {
   name: string;
-  phone: string;
+  phone?: string | null;
   netBalance: string;
 }
 

@@ -21,7 +21,7 @@ interface ExpenseFormProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: {
-    id: string;
+    id?: string;
     customerName: string;
     customerPhone?: string | null;
     category?: string | null;
@@ -261,7 +261,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           note: expenseNote || undefined,
         };
 
-        const res = initialData
+        const res = initialData?.id
           ? await updateExpense(initialData.id, payload)
           : await createExpense(payload);
 
@@ -272,7 +272,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
             toast.error("Failed to save transaction. Please check your inputs and try again.");
           }
         } else {
-          toast.success(initialData ? "Transaction updated successfully!" : "Transaction recorded successfully!");
+          toast.success(initialData?.id ? "Transaction updated successfully!" : "Transaction recorded successfully!");
           onSuccess();
           onOpenChange(false);
         }
@@ -374,7 +374,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           <div className="p-6">
             <DialogHeader className="mb-4">
               <DialogTitle>
-                {initialData
+                {initialData?.id
                   ? "Edit Transaction"
                   : activeTab === "expense"
                     ? "Add Expense"
@@ -410,7 +410,7 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
                       }}
                       onFocus={() => setShowSuggestions(true)}
                       className="pl-9 h-10 text-sm"
-                      disabled={!!initialData}
+                      disabled={!!initialData?.id}
                       required
                     />
                   </div>

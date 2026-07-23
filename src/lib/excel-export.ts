@@ -13,7 +13,7 @@ export interface ExpenseForExcel {
 
 export interface CustomerForExcel {
   name: string;
-  phone: string;
+  phone?: string | null;
   netBalance: string;
 }
 

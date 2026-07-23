@@ -2,7 +2,7 @@
 
 import { db } from "@db/index";
 import { expenses, customers } from "@db/schema";
-import { eq, desc, and, sql, not } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { expenseSchema, type ExpenseInput } from "@/schemas/expense";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -77,36 +77,45 @@ export async function createExpense(data: ExpenseInput) {
     const userId = await getRequiredUserId();
     const validated = expenseSchema.parse(data);
 
-    // Check if customer already exists for this admin by phone number
-    const existing = await db
-      .select({ id: customers.id, name: customers.name })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.userId, userId),
-          eq(customers.phone, validated.customerPhone)
-        )
-      )
-      .limit(1);
+    // Check if customer already exists for this admin by phone or name
+    const existing = validated.customerPhone && validated.customerPhone.trim()
+      ? await db
+          .select({ id: customers.id, name: customers.name })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.userId, userId),
+              eq(customers.phone, validated.customerPhone)
+            )
+          )
+          .limit(1)
+      : await db
+          .select({ id: customers.id, name: customers.name })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.userId, userId),
+              eq(customers.name, validated.customerName)
+            )
+          )
+          .limit(1);
 
     let customerId: string;
     if (existing.length > 0) {
       customerId = existing[0].id;
-      // If the name has changed, update it to the new name
       if (existing[0].name !== validated.customerName) {
         await db
           .update(customers)
-          .set({ name: validated.customerName })
+          .set({ name: validated.customerName, updatedAt: new Date() })
           .where(eq(customers.id, customerId));
       }
     } else {
-      // If it doesn't exist, insert a new customer
       const [newCustomer] = await db
         .insert(customers)
         .values({
           userId,
           name: validated.customerName,
-          phone: validated.customerPhone,
+          phone: validated.customerPhone || null,
         })
         .returning({ id: customers.id });
       customerId = newCustomer.id;
@@ -116,7 +125,6 @@ export async function createExpense(data: ExpenseInput) {
     const debitVal = validated.debit ?? 0;
     const netBalanceVal = debitVal - creditVal;
 
-    // Always insert a new transaction record
     await db.insert(expenses).values({
       userId,
       customerId,
@@ -143,26 +151,35 @@ export async function updateExpense(id: string, data: ExpenseInput) {
     const userId = await getRequiredUserId();
     const validated = expenseSchema.parse(data);
 
-    // Check if customer already exists for this admin by phone number
-    const existingCustomer = await db
-      .select({ id: customers.id, name: customers.name })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.userId, userId),
-          eq(customers.phone, validated.customerPhone)
-        )
-      )
-      .limit(1);
+    const existingCustomer = validated.customerPhone && validated.customerPhone.trim()
+      ? await db
+          .select({ id: customers.id, name: customers.name })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.userId, userId),
+              eq(customers.phone, validated.customerPhone)
+            )
+          )
+          .limit(1)
+      : await db
+          .select({ id: customers.id, name: customers.name })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.userId, userId),
+              eq(customers.name, validated.customerName)
+            )
+          )
+          .limit(1);
 
     let customerId: string;
     if (existingCustomer.length > 0) {
       customerId = existingCustomer[0].id;
-      // If the name has changed, update it to the new name
       if (existingCustomer[0].name !== validated.customerName) {
         await db
           .update(customers)
-          .set({ name: validated.customerName })
+          .set({ name: validated.customerName, updatedAt: new Date() })
           .where(eq(customers.id, customerId));
       }
     } else {
@@ -171,7 +188,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
         .values({
           userId,
           name: validated.customerName,
-          phone: validated.customerPhone,
+          phone: validated.customerPhone || null,
         })
         .returning({ id: customers.id });
       customerId = newCustomer.id;
@@ -255,13 +272,23 @@ export async function getCustomersWithBalances() {
       .select({
         id: customers.id,
         name: customers.name,
+        nickname: customers.nickname,
         phone: customers.phone,
+        monthlyBudget: customers.monthlyBudget,
+        notes: customers.notes,
         netBalance: sql<string>`COALESCE(SUM(CAST(${expenses.debit} AS NUMERIC) - CAST(${expenses.credit} AS NUMERIC)), 0)::text`,
       })
       .from(customers)
       .leftJoin(expenses, eq(customers.id, expenses.customerId))
       .where(eq(customers.userId, userId))
-      .groupBy(customers.id, customers.name, customers.phone)
+      .groupBy(
+        customers.id,
+        customers.name,
+        customers.nickname,
+        customers.phone,
+        customers.monthlyBudget,
+        customers.notes
+      )
       .orderBy(customers.name);
   } catch (error) {
     console.error("Failed to get customers with balances:", error);
@@ -291,39 +318,56 @@ export async function deleteCustomer(id: string) {
   }
 }
 
-export async function updateCustomer(id: string, name: string, phone: string) {
+export async function updateCustomer(
+  id: string,
+  nameOrData:
+    | string
+    | {
+        name: string;
+        nickname?: string | null;
+        phone?: string | null;
+        monthlyBudget?: number | string | null;
+        notes?: string | null;
+      },
+  phoneParam?: string
+) {
   try {
     const userId = await getRequiredUserId();
-    
-    // 1. Validate inputs
+
+    let name: string;
+    let nickname: string | null = null;
+    let phone: string | null = null;
+    let monthlyBudget: string = "0";
+    let notes: string | null = null;
+
+    if (typeof nameOrData === "string") {
+      name = nameOrData;
+      phone = phoneParam || null;
+    } else {
+      name = nameOrData.name;
+      nickname = nameOrData.nickname || null;
+      phone = nameOrData.phone || null;
+      monthlyBudget = (nameOrData.monthlyBudget ?? 0).toString();
+      notes = nameOrData.notes || null;
+    }
+
     if (name.trim().length < 2) {
       return { error: "Customer name must be at least 2 characters." };
     }
-    if (phone.trim().length !== 10) {
-      return { error: "Mobile number must be exactly 10 digits." };
+    if (phone && phone.trim().length > 0 && phone.trim().length !== 10) {
+      return { error: "Mobile number must be exactly 10 digits if provided." };
     }
 
-    // 2. Check if another customer already has this phone number
-    const existing = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.userId, userId),
-          eq(customers.phone, phone),
-          not(eq(customers.id, id))
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      return { error: "A customer with this mobile number already exists." };
-    }
-
-    // 3. Update the customer
     await db
       .update(customers)
-      .set({ name, phone })
+      .set({
+        name,
+        nickname,
+        phone: phone || null,
+        monthlyBudget,
+        notes,
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(customers.id, id),

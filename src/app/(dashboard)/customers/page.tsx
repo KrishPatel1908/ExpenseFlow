@@ -1,52 +1,130 @@
 "use client";
 
-import { useState } from "react";
-import { Search } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, RefreshCw, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageLayoutLock } from "@/components/page-layout-lock";
-import { CustomerTable, type Customer } from "@/features/customers/customer-table";
+import { CustomerTable } from "@/features/customers/customer-table";
+import { CustomerFilters } from "@/features/customers/customer-filters";
+import { CustomerPagination } from "@/features/customers/customer-pagination";
 import { CustomerExportDropdown } from "@/features/customers/customer-export-dropdown";
-import { EditCustomerDialog } from "@/features/customers/edit-customer-dialog";
+import { CustomerForm } from "@/features/customers/customer-form";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
-import { useCustomersPage } from "@/features/customers/use-customers-page";
-import { deleteCustomer } from "@/services/expense-actions";
+import {
+  getCustomers,
+  createCustomer,
+  updateCustomerProfile,
+  deleteCustomerProfile,
+  type CustomerWithStats,
+} from "@/services/customer-actions";
+import { type CustomerInput } from "@/schemas/customer";
 import { toast } from "sonner";
 
 const formatCurrency = (value: number | string) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })
-    .format(typeof value === "string" ? parseFloat(value) : value);
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(typeof value === "string" ? parseFloat(value) : value);
 
 export default function CustomersPage() {
-  const {
-    customers, loading,
-    searchQuery, setSearchQuery,
-    filteredCustomers, isFilterApplied,
-    loadCustomers,
-  } = useCustomersPage();
+  // Data States
+  const [customers, setCustomers] = useState<CustomerWithStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  // Pagination & Filtering States
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "createdAt">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Form & Dialog States
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerWithStats | null>(null);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerWithStats | null>(null);
 
-  const handleDeleteClick = (customer: Customer) => {
+  // Debounce search query (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to first page on new search query
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch Customers Data
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setHasError(false);
+
+    try {
+      const res = await getCustomers({
+        page,
+        pageSize,
+        search: debouncedSearch,
+        sortBy,
+        sortOrder,
+      });
+
+      setCustomers(res.customers);
+      setTotalCount(res.totalCount);
+      setTotalPages(res.totalPages);
+    } catch {
+      setHasError(true);
+      toast.error("Failed to load customer profiles. Please retry.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, debouncedSearch, sortBy, sortOrder]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Handlers for Form & Actions
+  const handleAddClick = () => {
+    setEditingCustomer(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditClick = (customer: CustomerWithStats) => {
+    setEditingCustomer(customer);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (customer: CustomerWithStats) => {
     setCustomerToDelete(customer);
     setDeleteDialogOpen(true);
   };
 
-  const handleEditClick = (customer: Customer) => {
-    setCustomerToEdit(customer);
-    setEditDialogOpen(true);
+  const handleFormSubmit = async (data: CustomerInput) => {
+    if (editingCustomer) {
+      return await updateCustomerProfile(editingCustomer.id, data);
+    }
+    return await createCustomer(data);
   };
 
   const confirmDelete = async () => {
     if (!customerToDelete) return;
+
     try {
-      const result = await deleteCustomer(customerToDelete.id);
-      if (result.error) toast.error(result.error);
-      else { toast.success("Customer and all related transactions deleted successfully."); loadCustomers(); }
+      const res = await deleteCustomerProfile(customerToDelete.id);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Customer profile deleted successfully.");
+        loadData();
+      }
     } catch {
-      toast.error("Failed to delete customer.");
+      toast.error("Failed to delete customer profile.");
     } finally {
       setDeleteDialogOpen(false);
       setCustomerToDelete(null);
@@ -61,55 +139,100 @@ export default function CustomersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Customers</h1>
-          <p className="text-slate-500 mt-1">Manage unique customer profiles and view their net balances.</p>
+          <p className="text-slate-500 mt-1">
+            Manage customer profiles, monthly budgets, and tracked expenses.
+          </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           <CustomerExportDropdown
             customers={customers}
-            filteredCustomers={filteredCustomers}
+            filteredCustomers={customers}
             searchQuery={searchQuery}
-            isFilterApplied={isFilterApplied}
+            isFilterApplied={searchQuery !== ""}
           />
+
+          <Button
+            onClick={handleAddClick}
+            className="bg-[#0b132a] hover:bg-[#1a284e] text-white font-medium gap-2 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Customer</span>
+          </Button>
         </div>
       </div>
 
-      {/* Search Input */}
-      <Card className="border border-slate-200 bg-white p-5 rounded-2xl shadow-xs">
-        <div className="relative w-full">
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by customer name or mobile number..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 text-sm border border-slate-200 rounded-full bg-white shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#0b132a] focus:border-transparent transition-all placeholder:text-slate-400 text-slate-800"
-          />
+      {/* Search & Sorting Filters */}
+      <CustomerFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        onReset={() => setSearchQuery("")}
+      />
+
+      {/* Error State with Retry Button */}
+      {hasError ? (
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-rose-100 p-8 text-center space-y-3">
+          <AlertTriangle className="h-10 w-10 text-rose-500" />
+          <h3 className="text-base font-bold text-slate-900">Failed to Load Customers</h3>
+          <p className="text-xs text-slate-500 max-w-sm">
+            Could not fetch customer data from the database. Please check your network connection and retry.
+          </p>
+          <Button
+            onClick={loadData}
+            variant="outline"
+            className="gap-2 text-xs font-semibold cursor-pointer border-rose-200 text-rose-600 hover:bg-rose-50"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Retry Loading</span>
+          </Button>
         </div>
-      </Card>
+      ) : (
+        <>
+          {/* Main Table */}
+          <CustomerTable
+            customers={customers}
+            loading={loading}
+            onEditClick={handleEditClick}
+            onDeleteClick={handleDeleteClick}
+            formatCurrency={formatCurrency}
+          />
 
-      <CustomerTable
-        customers={customers}
-        loading={loading}
-        filteredCustomers={filteredCustomers}
-        onEditClick={handleEditClick}
-        onDeleteClick={handleDeleteClick}
-        formatCurrency={formatCurrency}
+          {/* Server-Side Pagination */}
+          <CustomerPagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </>
+      )}
+
+      {/* Reusable Customer Form Modal */}
+      <CustomerForm
+        isOpen={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        initialData={editingCustomer}
+        onSubmit={handleFormSubmit}
+        onSuccess={loadData}
       />
 
-      <EditCustomerDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        customer={customerToEdit}
-        onSuccess={loadCustomers}
-      />
-
+      {/* Confirmation Delete Dialog */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={confirmDelete}
-        title="Delete Customer"
-        description={`Are you sure you want to delete "${customerToDelete?.name}"? Warning: This will also permanently delete all transaction history associated with this customer. This action cannot be undone.`}
-        confirmText="Delete"
+        title="Confirm Customer Deletion"
+        description={`Are you sure you want to delete customer "${customerToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete Customer"
         isSubmitting={false}
       />
     </div>

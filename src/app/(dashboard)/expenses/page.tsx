@@ -11,6 +11,8 @@ import { ExpenseExportDropdown } from "@/features/expenses/expense-export-dropdo
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { useExpensesPage } from "@/features/expenses/use-expenses-page";
 import { deleteExpense } from "@/services/expense-actions";
+import { VoiceButton } from "@/features/voice/components/VoiceButton";
+import type { VoiceConfirmationFormValues } from "@/features/voice/components/VoiceTransactionDialog";
 import { toast } from "sonner";
 
 const formatCurrency = (value: number | string) =>
@@ -31,14 +33,48 @@ export default function ExpensesPage() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [prefilledVoiceExpense, setPrefilledVoiceExpense] = useState<{
+    customerName: string;
+    credit: string;
+    debit: string;
+    category?: string;
+    note?: string;
+    date: string;
+  } | null>(null);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; customerName: string } | null>(null);
 
-  const handleAddClick = () => { setEditingExpense(null); setIsFormOpen(true); };
-  const handleEditClick = (expense: Expense) => { setEditingExpense(expense); setIsFormOpen(true); };
+  const handleAddClick = () => {
+    setEditingExpense(null);
+    setPrefilledVoiceExpense(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditClick = (expense: Expense) => {
+    setPrefilledVoiceExpense(null);
+    setEditingExpense(expense);
+    setIsFormOpen(true);
+  };
+
   const handleDeleteClick = (id: string, customerName: string) => {
     setExpenseToDelete({ id, customerName });
     setDeleteDialogOpen(true);
+  };
+
+  // Called when Voice Module confirms extracted data
+  const handleVoiceComplete = (voiceData: VoiceConfirmationFormValues) => {
+    setEditingExpense(null);
+    setPrefilledVoiceExpense({
+      customerName: voiceData.customer,
+      credit: voiceData.transactionType === "credit" ? String(voiceData.amount) : "0",
+      debit: voiceData.transactionType === "debit" ? String(voiceData.amount) : "0",
+      category: voiceData.category || "",
+      note: voiceData.description || "",
+      date: voiceData.date,
+    });
+    setIsFormOpen(true);
+    toast.info("Form populated with voice transaction details. Review and click Save.");
   };
 
   const confirmDelete = async () => {
@@ -66,6 +102,9 @@ export default function ExpensesPage() {
           <p className="text-slate-500 mt-1">Record and track individual customer expenses.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          {/* Reusable Voice Button with Language Selector */}
+          <VoiceButton onVoiceComplete={handleVoiceComplete} />
+
           <ExpenseExportDropdown
             expenses={expenses}
             filteredExpenses={filteredExpenses}
@@ -76,6 +115,7 @@ export default function ExpensesPage() {
             searchQuery={searchQuery}
             isFilterApplied={isFilterApplied}
           />
+
           <Button
             onClick={handleAddClick}
             className="bg-[#0b132a] hover:bg-[#1a284e] text-white font-medium gap-2 cursor-pointer"
@@ -132,8 +172,13 @@ export default function ExpensesPage() {
 
       <ExpenseForm
         isOpen={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        initialData={editingExpense}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setPrefilledVoiceExpense(null);
+          }
+        }}
+        initialData={editingExpense || prefilledVoiceExpense}
         onSuccess={loadData}
       />
     </div>

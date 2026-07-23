@@ -26,6 +26,7 @@ export const expenses = pgTable("expenses", {
   date: timestamp("date", { withTimezone: true }).notNull(),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ([
   index("expenses_customer_id_idx").on(table.customerId),
   index("expenses_date_idx").on(table.date),

@@ -9,5 +9,10 @@ CREATE TABLE IF NOT EXISTS expenses (
     net_balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
     date TIMESTAMP WITH TIME ZONE NOT NULL,
     note TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS expenses_customer_id_idx ON expenses(customer_id);
+CREATE INDEX IF NOT EXISTS expenses_date_idx ON expenses(date);
+CREATE INDEX IF NOT EXISTS expenses_user_id_idx ON expenses(user_id);

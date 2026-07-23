@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLayoutLock } from "@/components/page-layout-lock";
 import { ExpenseForm } from "@/features/expenses/expense-form";
 import { ExpenseFilters } from "@/features/expenses/expense-filters";
 import { ExpenseTable, type Expense } from "@/features/expenses/expense-table";
+import { ExpensePagination } from "@/features/expenses/expense-pagination";
 import { ExpenseExportDropdown } from "@/features/expenses/expense-export-dropdown";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { useExpensesPage } from "@/features/expenses/use-expenses-page";
@@ -16,18 +17,35 @@ import type { VoiceConfirmationFormValues } from "@/features/voice/components/Vo
 import { toast } from "sonner";
 
 const formatCurrency = (value: number | string) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })
-    .format(typeof value === "string" ? parseFloat(value) : value);
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(typeof value === "string" ? parseFloat(value) : value);
 
 export default function ExpensesPage() {
   const {
-    expenses, dbCategories, loading,
-    searchQuery, setSearchQuery,
-    typeFilter, setTypeFilter,
-    categoryFilter, setCategoryFilter,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    filteredExpenses, isFilterApplied,
+    expenses,
+    dbCategories,
+    loading,
+    hasError,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalCount,
+    totalPages,
+    searchQuery,
+    setSearchQuery,
+    typeFilter,
+    setTypeFilter,
+    categoryFilter,
+    setCategoryFilter,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isFilterApplied,
     loadData,
   } = useExpensesPage();
 
@@ -62,7 +80,7 @@ export default function ExpensesPage() {
     setDeleteDialogOpen(true);
   };
 
-  // Called when Voice Module confirms extracted data
+  // Called when Voice Module confirms extracted transaction data
   const handleVoiceComplete = (voiceData: VoiceConfirmationFormValues) => {
     setEditingExpense(null);
     setPrefilledVoiceExpense({
@@ -81,8 +99,12 @@ export default function ExpensesPage() {
     if (!expenseToDelete) return;
     try {
       const result = await deleteExpense(expenseToDelete.id);
-      if (result.error) toast.error(result.error);
-      else { toast.success("Transaction deleted successfully."); loadData(); }
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Transaction deleted successfully.");
+        loadData();
+      }
     } catch {
       toast.error("Failed to delete transaction.");
     } finally {
@@ -101,13 +123,14 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Expenses</h1>
           <p className="text-slate-500 mt-1">Record and track individual customer expenses.</p>
         </div>
+
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           {/* Reusable Voice Button with Language Selector */}
           <VoiceButton onVoiceComplete={handleVoiceComplete} />
 
           <ExpenseExportDropdown
             expenses={expenses}
-            filteredExpenses={filteredExpenses}
+            filteredExpenses={expenses}
             startDate={startDate}
             endDate={endDate}
             typeFilter={typeFilter}
@@ -126,6 +149,7 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      {/* Filters Bar */}
       <ExpenseFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -140,26 +164,51 @@ export default function ExpensesPage() {
         dbCategories={dbCategories}
       />
 
-      {(startDate || endDate) && (
-        <div className="flex sm:hidden justify-end -mt-3">
-          <button
-            onClick={() => { setStartDate(""); setEndDate(""); }}
-            className="text-xs text-rose-500 hover:text-rose-700 font-semibold cursor-pointer transition-colors flex items-center gap-1"
+      {/* Error State with Retry Button */}
+      {hasError ? (
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-rose-100 p-8 text-center space-y-3">
+          <AlertTriangle className="h-10 w-10 text-rose-500" />
+          <h3 className="text-base font-bold text-slate-900">Failed to Load Expenses</h3>
+          <p className="text-xs text-slate-500 max-w-sm">
+            Could not fetch transactions from the database. Please check your network connection and retry.
+          </p>
+          <Button
+            onClick={loadData}
+            variant="outline"
+            className="gap-2 text-xs font-semibold cursor-pointer border-rose-200 text-rose-600 hover:bg-rose-50"
           >
-            <span>✕</span><span>Clear Date Filter</span>
-          </button>
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Retry Loading</span>
+          </Button>
         </div>
+      ) : (
+        <>
+          {/* Main Table */}
+          <ExpenseTable
+            expenses={expenses}
+            loading={loading}
+            filteredExpenses={expenses}
+            onEditClick={handleEditClick}
+            onDeleteClick={handleDeleteClick}
+            formatCurrency={formatCurrency}
+          />
+
+          {/* Server-Side Pagination */}
+          <ExpensePagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </>
       )}
 
-      <ExpenseTable
-        expenses={expenses}
-        loading={loading}
-        filteredExpenses={filteredExpenses}
-        onEditClick={handleEditClick}
-        onDeleteClick={handleDeleteClick}
-        formatCurrency={formatCurrency}
-      />
-
+      {/* Confirmation Delete Dialog */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -170,6 +219,7 @@ export default function ExpensesPage() {
         isSubmitting={false}
       />
 
+      {/* Reusable Expense Form */}
       <ExpenseForm
         isOpen={isFormOpen}
         onOpenChange={(open) => {

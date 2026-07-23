@@ -229,8 +229,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           return;
         }
 
-        if (!selectedCustomer.customerPhone || selectedCustomer.customerPhone.trim().length < 10) {
-          toast.error("The selected customer does not have a valid 10-digit mobile number.");
+        if (selectedCustomer.customerPhone && selectedCustomer.customerPhone.trim() && selectedCustomer.customerPhone.trim().length !== 10) {
+          toast.error("Mobile number must be 10 digits if provided.");
           setIsSubmitting(false);
           return;
         }
@@ -238,13 +238,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         const creditVal = parseFloat(expenseCredit) || 0;
         const debitVal = parseFloat(expenseDebit) || 0;
 
-        if (creditVal < 0) {
-          toast.error("Credit amount cannot be negative.");
-          setIsSubmitting(false);
-          return;
-        }
-        if (debitVal < 0) {
-          toast.error("Debit amount cannot be negative.");
+        if (creditVal <= 0 && debitVal <= 0) {
+          toast.error("Transaction amount must be greater than zero.");
           setIsSubmitting(false);
           return;
         }
@@ -283,8 +278,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           setIsSubmitting(false);
           return;
         }
-        if (!custPhone || custPhone.trim().length !== 10) {
-          toast.error("Please enter a valid 10-digit mobile number.");
+        if (custPhone && custPhone.trim() && custPhone.trim().length !== 10) {
+          toast.error("Mobile number must be 10 digits if provided.");
           setIsSubmitting(false);
           return;
         }
@@ -292,13 +287,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         const creditVal = parseFloat(custCredit) || 0;
         const debitVal = parseFloat(custDebit) || 0;
 
-        if (creditVal < 0) {
-          toast.error("Initial credit cannot be negative.");
-          setIsSubmitting(false);
-          return;
-        }
-        if (debitVal < 0) {
-          toast.error("Initial debit cannot be negative.");
+        if (creditVal <= 0 && debitVal <= 0) {
+          toast.error("Transaction amount must be greater than zero.");
           setIsSubmitting(false);
           return;
         }

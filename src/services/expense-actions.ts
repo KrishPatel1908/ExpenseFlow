@@ -2,7 +2,7 @@
 
 import { db } from "@db/index";
 import { expenses, customers } from "@db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, asc, and, sql, ilike, count, gte, lte, gt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { expenseSchema, type ExpenseInput } from "@/schemas/expense";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -17,10 +17,101 @@ async function getRequiredUserId() {
   return user.id;
 }
 
-export async function getExpenses() {
+export interface GetExpensesParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  typeFilter?: "all" | "credit" | "debit";
+  categoryFilter?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: "date" | "createdAt";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface ExpenseItem {
+  id: string;
+  customerName: string;
+  customerPhone: string | null;
+  category: string | null;
+  credit: string;
+  debit: string;
+  netBalance: string;
+  date: Date;
+  note: string | null;
+}
+
+export interface GetExpensesResult {
+  expenses: ExpenseItem[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Fetch paginated, filtered, searchable, sorted transactions for logged in user.
+ */
+export async function getExpenses(
+  params: GetExpensesParams = {}
+): Promise<GetExpensesResult> {
   try {
     const userId = await getRequiredUserId();
-    return await db
+    const {
+      page = 1,
+      pageSize = 10,
+      search = "",
+      typeFilter = "all",
+      categoryFilter = "",
+      startDate = "",
+      endDate = "",
+      sortOrder = "desc",
+    } = params;
+
+    const offset = (page - 1) * pageSize;
+    const cleanSearch = search.trim();
+
+    // Construct SQL Filters
+    const filters = [eq(expenses.userId, userId)];
+
+    if (cleanSearch) {
+      filters.push(ilike(customers.name, `%${cleanSearch}%`));
+    }
+
+    if (typeFilter === "credit") {
+      filters.push(gt(expenses.credit, "0"));
+    } else if (typeFilter === "debit") {
+      filters.push(gt(expenses.debit, "0"));
+    }
+
+    if (categoryFilter && categoryFilter.trim()) {
+      filters.push(eq(expenses.category, categoryFilter.trim()));
+    }
+
+    if (startDate && startDate.trim()) {
+      filters.push(gte(expenses.date, new Date(startDate.trim())));
+    }
+
+    if (endDate && endDate.trim()) {
+      const end = new Date(endDate.trim());
+      end.setHours(23, 59, 59, 999);
+      filters.push(lte(expenses.date, end));
+    }
+
+    const combinedWhere = and(...filters);
+
+    // 1. Get total count for pagination
+    const [countRes] = await db
+      .select({ total: count(expenses.id) })
+      .from(expenses)
+      .innerJoin(customers, eq(expenses.customerId, customers.id))
+      .where(combinedWhere);
+
+    const totalCount = Number(countRes?.total || 0);
+    const totalPages = Math.ceil(totalCount / pageSize) || 1;
+
+    // 2. Fetch paginated expense items with cumulative balance
+    const rows = await db
       .select({
         id: expenses.id,
         customerName: customers.name,
@@ -37,11 +128,26 @@ export async function getExpenses() {
       })
       .from(expenses)
       .innerJoin(customers, eq(expenses.customerId, customers.id))
-      .where(eq(expenses.userId, userId))
-      .orderBy(desc(expenses.date), desc(expenses.createdAt));
+      .where(combinedWhere)
+      .orderBy(
+        sortOrder === "asc"
+          ? asc(expenses.date)
+          : desc(expenses.date),
+        desc(expenses.createdAt)
+      )
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      expenses: rows,
+      totalCount,
+      totalPages,
+      page,
+      pageSize,
+    };
   } catch (error) {
     console.error("Failed to get expenses:", error);
-    throw new Error("Failed to retrieve expenses");
+    throw new Error("Failed to retrieve expenses list");
   }
 }
 
@@ -134,9 +240,11 @@ export async function createExpense(data: ExpenseInput) {
       netBalance: netBalanceVal.toString(),
       date: new Date(validated.date),
       note: validated.note || null,
+      updatedAt: new Date(),
     });
 
     revalidatePath("/expenses");
+    revalidatePath("/customers");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error: unknown) {
@@ -208,6 +316,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
         netBalance: netBalanceVal.toString(),
         date: new Date(validated.date),
         note: validated.note || null,
+        updatedAt: new Date(),
       })
       .where(
         and(
@@ -217,6 +326,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
       );
 
     revalidatePath("/expenses");
+    revalidatePath("/customers");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error: unknown) {
@@ -236,6 +346,7 @@ export async function deleteExpense(id: string) {
       )
     );
     revalidatePath("/expenses");
+    revalidatePath("/customers");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error: unknown) {

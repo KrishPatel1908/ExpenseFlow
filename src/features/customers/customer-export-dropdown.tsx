@@ -23,16 +23,12 @@ export function CustomerExportDropdown({
   isFilterApplied
 }: CustomerExportDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [pinnedFormat, setPinnedFormat] = useState<"pdf" | "excel" | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Load pinned default export format from localStorage if available
-  useEffect(() => {
+  const [pinnedFormat, setPinnedFormat] = useState<"pdf" | "excel" | null>(() => {
+    if (typeof window === "undefined") return null;
     const saved = localStorage.getItem("expenseflow_default_export_format");
-    if (saved === "pdf" || saved === "excel") {
-      setPinnedFormat(saved);
-    }
-  }, []);
+    return saved === "pdf" || saved === "excel" ? saved : null;
+  });
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handlePin = (format: "pdf" | "excel", e: React.MouseEvent) => {
     e.stopPropagation();

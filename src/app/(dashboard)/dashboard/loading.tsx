@@ -44,11 +44,11 @@ export default function DashboardLoading() {
             </div>
           </div>
           <div className="h-[250px] w-full bg-slate-100 rounded-xl flex items-end justify-between p-4 gap-2">
-            {[...Array(12)].map((_, idx) => (
+            {[40, 65, 30, 80, 55, 70, 45, 85, 35, 60, 50, 75].map((height, idx) => (
               <div
                 key={idx}
                 className="w-full bg-slate-200 rounded-t-sm"
-                style={{ height: `${20 + Math.random() * 60}%` }}
+                style={{ height: `${height}%` }}
               />
             ))}
           </div>

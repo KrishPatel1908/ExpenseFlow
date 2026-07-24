@@ -126,7 +126,7 @@ export default function ExpensesPage() {
 
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           {/* Reusable Voice Button with Language Selector */}
-          <VoiceButton onVoiceComplete={handleVoiceComplete} />
+          <VoiceButton onVoiceComplete={handleVoiceComplete} categories={dbCategories} />
 
           <ExpenseExportDropdown
             expenses={expenses}

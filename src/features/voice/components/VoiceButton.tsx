@@ -11,7 +11,8 @@ import {
   VoiceTransactionDialog,
   type VoiceConfirmationFormValues,
 } from "./VoiceTransactionDialog";
-import type { VoiceLanguageCode, VoiceApiResponse } from "../types";
+import type { VoiceLanguageCode } from "../types";
+import { parseTransaction, type ParsedTransaction, type NlpLanguageCode } from "@/lib/nlp";
 import {
   Dialog,
   DialogContent,
@@ -22,21 +23,32 @@ import {
 
 export interface VoiceButtonProps {
   onVoiceComplete: (data: VoiceConfirmationFormValues) => void;
+  categories?: string[];
   className?: string;
   variant?: "default" | "outline" | "secondary" | "ghost";
 }
 
 export function VoiceButton({
   onVoiceComplete,
+  categories = [],
   className = "",
   variant = "default",
 }: VoiceButtonProps) {
   const [listeningModalOpen, setListeningModalOpen] = useState(false);
-  const [isProcessingAi, setIsProcessingAi] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
 
-  // Parsed AI data state for confirmation dialog
-  const [parsedData, setParsedData] = useState<VoiceApiResponse["data"] | null>(null);
+  // Parsed rule-based NLP data state for confirmation dialog
+  const [parsedData, setParsedData] = useState<{
+    customer?: string;
+    amount?: number;
+    transactionType?: "credit" | "debit";
+    category?: string;
+    description?: string;
+    date?: string;
+    confidence?: "high" | "medium" | "low";
+  } | null>(null);
+  const [rawParsedResult, setRawParsedResult] = useState<ParsedTransaction | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string>("");
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
 
@@ -60,48 +72,54 @@ export function VoiceButton({
     }
   }, [error]);
 
-  const processTranscriptWithAi = useCallback(async (textToProcess: string) => {
-    if (!textToProcess.trim()) {
-      toast.error("No speech transcript detected. Please try again.");
-      return;
-    }
-
-    setIsProcessingAi(true);
-    setHasFailed(false);
-    const toastId = toast.loading("Processing voice with Gemini AI...");
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[Voice Module] Processing transcript:", textToProcess);
-    }
-
-    try {
-      const res = await fetch("/api/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: textToProcess }),
-      });
-
-      const json: VoiceApiResponse = await res.json();
-
-      if (!res.ok || !json.success || !json.data) {
-        setHasFailed(true);
-        toast.error(json.reason || "Failed to process voice transcript.", { id: toastId });
+  const processTranscriptLocally = useCallback(
+    (textToProcess: string) => {
+      if (!textToProcess.trim()) {
+        toast.error("No speech transcript detected. Please try again.");
         return;
       }
 
-      toast.success("Voice transcript processed successfully!", { id: toastId });
-      setParsedData(json.data);
-      setConfirmationDialogOpen(true);
-    } catch (err: unknown) {
-      setHasFailed(true);
-      console.error("[Voice Module] Network or processing error:", err);
-      toast.error("Network failure while reaching Voice API. Click Retry to try again.", {
-        id: toastId,
-      });
-    } finally {
-      setIsProcessingAi(false);
-    }
-  }, []);
+      setIsParsing(true);
+      setHasFailed(false);
+      const toastId = toast.loading("Parsing voice transcript...");
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Voice Module] Parsing transcript locally:", textToProcess);
+      }
+
+      try {
+        const result: ParsedTransaction = parseTransaction(textToProcess, {
+          language: language as NlpLanguageCode,
+          availableCategories: categories,
+        });
+
+        setRawParsedResult(result);
+
+        const initialFormValues = {
+          customer: result.customer || "",
+          amount: result.amount || 0,
+          transactionType: result.transactionType || "debit",
+          category: result.category || "",
+          description: result.description || textToProcess,
+          date: result.date || new Date().toISOString().split("T")[0],
+          confidence: result.confidence,
+        };
+
+        toast.success("Voice transcript parsed successfully!", { id: toastId });
+        setParsedData(initialFormValues);
+        setConfirmationDialogOpen(true);
+      } catch (err: unknown) {
+        setHasFailed(true);
+        console.error("[Voice Module] Parsing error:", err);
+        toast.error("Failed to parse voice transcript. Please try again.", {
+          id: toastId,
+        });
+      } finally {
+        setIsParsing(false);
+      }
+    },
+    [categories, language]
+  );
 
   const handleStart = async () => {
     if (!isSupported) {
@@ -125,7 +143,7 @@ export function VoiceButton({
     start();
   };
 
-  const handleStop = async () => {
+  const handleStop = () => {
     stop();
     setListeningModalOpen(false);
 
@@ -137,12 +155,12 @@ export function VoiceButton({
     }
 
     setLastTranscript(fullTranscript);
-    await processTranscriptWithAi(fullTranscript);
+    processTranscriptLocally(fullTranscript);
   };
 
-  const handleRetry = async () => {
+  const handleRetry = () => {
     if (lastTranscript) {
-      await processTranscriptWithAi(lastTranscript);
+      processTranscriptLocally(lastTranscript);
     } else {
       handleStart();
     }
@@ -164,7 +182,7 @@ export function VoiceButton({
         <select
           value={language}
           onChange={(e) => changeLanguage(e.target.value as VoiceLanguageCode)}
-          disabled={isListening || isProcessingAi}
+          disabled={isListening || isParsing}
           aria-label="Select voice recognition language"
           className="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-2 pl-7 pr-6 rounded-lg border border-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50 transition-colors"
           title="Select Voice Language"
@@ -182,7 +200,7 @@ export function VoiceButton({
       <Button
         type="button"
         onClick={isListening ? handleStop : handleStart}
-        disabled={isProcessingAi}
+        disabled={isParsing}
         variant={variant}
         aria-label={isListening ? "Stop listening to voice" : "Start voice expense input"}
         aria-expanded={listeningModalOpen}
@@ -193,22 +211,22 @@ export function VoiceButton({
               "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white shadow"
         }`}
       >
-        {isProcessingAi ? (
+        {isParsing ? (
           <Loader2 className="h-4 w-4 animate-spin text-white" />
         ) : (
           <Mic className={`h-4 w-4 ${isListening ? "animate-bounce" : ""}`} />
         )}
-        <span>{isProcessingAi ? "Processing..." : isListening ? "Listening..." : "Voice Add"}</span>
+        <span>{isParsing ? "Parsing..." : isListening ? "Listening..." : "Voice Add"}</span>
       </Button>
 
       {/* Retry Button (Visible if processing failed) */}
-      {hasFailed && !isProcessingAi && !isListening && (
+      {hasFailed && !isParsing && !isListening && (
         <Button
           type="button"
           onClick={handleRetry}
           variant="outline"
           size="sm"
-          aria-label="Retry AI processing"
+          aria-label="Retry voice parsing"
           className="text-xs font-medium text-rose-600 border-rose-200 hover:bg-rose-50 gap-1.5 cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -248,10 +266,12 @@ export function VoiceButton({
         onOpenChange={setConfirmationDialogOpen}
         transcript={lastTranscript}
         initialData={parsedData}
+        rawParsedResult={rawParsedResult}
         onConfirm={handleConfirmVoiceData}
         onCancel={() => {
           setConfirmationDialogOpen(false);
           setParsedData(null);
+          setRawParsedResult(null);
         }}
       />
     </div>

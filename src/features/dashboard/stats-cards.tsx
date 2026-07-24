@@ -52,12 +52,12 @@ export function StatsCards({ stats }: StatsCardsProps) {
     },
     {
       title: "NET BALANCE",
-      value: creditRemains 
-        ? formatCurrency(Math.abs(stats.netBalance)) 
+      value: creditRemains
+        ? formatCurrency(Math.abs(stats.netBalance))
         : formatCurrency(-Math.abs(stats.netBalance)),
       icon: Wallet,
-      iconColor: creditRemains 
-        ? "text-emerald-700 bg-emerald-50/50 border border-emerald-150" 
+      iconColor: creditRemains
+        ? "text-emerald-700 bg-emerald-50/50 border border-emerald-150"
         : "text-red-600 bg-red-50/50 border border-red-100",
       valueColor: creditRemains ? "text-emerald-700" : "text-red-600",
       footer: "Net credit vs debit balance",
@@ -70,8 +70,8 @@ export function StatsCards({ stats }: StatsCardsProps) {
       {cardItems.map((item, index) => {
         const Icon = item.icon;
         return (
-          <Card 
-            key={index} 
+          <Card
+            key={index}
             className={cn(
               "flex flex-col p-4 sm:p-5 border border-slate-100 bg-white rounded-xl shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] transition-all duration-200 hover:shadow-sm",
               item.orderClass

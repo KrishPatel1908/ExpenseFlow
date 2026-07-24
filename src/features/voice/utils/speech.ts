@@ -56,6 +56,5 @@ export interface VoiceLanguageOption {
 
 export const SUPPORTED_VOICE_LANGUAGES: VoiceLanguageOption[] = [
   { code: "en-IN", label: "English", flag: "🇬🇧" },
-  { code: "hi-IN", label: "हिन्दी", flag: "🇮🇳" },
   { code: "gu-IN", label: "ગુજરાતી", flag: "🇮🇳" },
 ];

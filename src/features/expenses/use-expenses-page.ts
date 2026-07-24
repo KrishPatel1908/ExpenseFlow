@@ -67,7 +67,10 @@ export function useExpensesPage() {
   }, [page, pageSize, debouncedSearchQuery, typeFilter, categoryFilter, startDate, endDate, sortOrder]);
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   const isFilterApplied =

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, numeric, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, varchar, numeric, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const customers = pgTable("customers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -38,3 +38,30 @@ export const userPreferences = pgTable("user_preferences", {
   defaultLandingPage: text("default_landing_page").notNull().default("/dashboard"),
   defaultExportFormat: text("default_export_format").notNull().default("pdf"),
 });
+
+export const voiceTraining = pgTable("voice_training", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  userEmail: text("user_email"),
+  transcript: text("transcript").notNull(),
+  parsedCustomer: text("parsed_customer"),
+  parsedAmount: numeric("parsed_amount", { precision: 12, scale: 2 }),
+  parsedTransactionType: text("parsed_transaction_type"),
+  parsedCategory: text("parsed_category"),
+  parsedDate: text("parsed_date"),
+  parsedDescription: text("parsed_description"),
+  confidence: text("confidence").notNull(),
+  finalCustomer: text("final_customer"),
+  finalAmount: numeric("final_amount", { precision: 12, scale: 2 }),
+  finalTransactionType: text("final_transaction_type"),
+  finalCategory: text("final_category"),
+  finalDate: text("final_date"),
+  finalDescription: text("final_description"),
+  isCorrected: boolean("is_corrected").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ([
+  index("voice_training_user_id_idx").on(table.userId),
+  index("voice_training_user_email_idx").on(table.userEmail),
+  index("voice_training_confidence_idx").on(table.confidence),
+  index("voice_training_is_corrected_idx").on(table.isCorrected),
+]));

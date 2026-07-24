@@ -28,7 +28,12 @@ export function useCustomersPage() {
     }
   }, [debouncedSearchQuery]);
 
-  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadCustomers();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadCustomers]);
 
   const filteredCustomers = customers.filter(c => {
     const q = debouncedSearchQuery.toLowerCase();

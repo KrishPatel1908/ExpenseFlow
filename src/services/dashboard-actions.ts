@@ -88,7 +88,7 @@ export async function getMonthlyTrend(startDate?: string, endDate?: string) {
     `);
 
     const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
 
@@ -113,7 +113,7 @@ export async function getMonthlyTrend(startDate?: string, endDate?: string) {
 export async function getRecentExpenses() {
   try {
     const userId = await getRequiredUserId();
-    
+
     const whereConditions = [eq(expenses.userId, userId)];
 
     return await db

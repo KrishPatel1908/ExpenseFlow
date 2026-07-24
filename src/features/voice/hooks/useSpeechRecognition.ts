@@ -39,17 +39,12 @@ export function useSpeechRecognition(
   const [interimTranscript, setInterimTranscript] = useState<string>("");
   const [isListening, setIsListening] = useState<boolean>(false);
   const [error, setError] = useState<SpeechRecognitionErrorDetails | null>(null);
-  const [isSupported, setIsSupported] = useState<boolean>(false);
+  const [isSupported] = useState<boolean>(() => isSpeechRecognitionSupported());
 
   // References for instance management and lifecycle safety
   const recognitionRef = useRef<ISpeechRecognitionInstance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isManuallyStoppedRef = useRef<boolean>(false);
-
-  // Check support on mount
-  useEffect(() => {
-    setIsSupported(isSpeechRecognitionSupported());
-  }, []);
 
   // Helper to clear silence timer
   const clearSilenceTimer = useCallback(() => {

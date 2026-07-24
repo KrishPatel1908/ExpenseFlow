@@ -86,7 +86,10 @@ export default function CustomersPage() {
   }, [page, pageSize, debouncedSearch, sortBy, sortOrder]);
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   // Handlers for Form & Actions

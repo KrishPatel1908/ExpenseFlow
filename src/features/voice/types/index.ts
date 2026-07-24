@@ -6,7 +6,7 @@ export type SpeechRecognitionStatus =
   | "error"
   | "unsupported";
 
-export type VoiceLanguageCode = "en-IN" | "hi-IN" | "gu-IN";
+export type VoiceLanguageCode = "en-IN" | "gu-IN";
 
 export type SpeechRecognitionErrorCode =
   | "not-allowed"
@@ -86,20 +86,7 @@ export interface VoiceParsedResult {
   }>;
 }
 
-export interface VoiceApiResponse {
-  success: boolean;
-  data?: {
-    customer: string;
-    amount: number;
-    transactionType: "credit" | "debit";
-    category: string;
-    description: string;
-    date: string;
-    normalizedCategory?: string;
-    formattedDate?: string;
-  };
-  reason?: string | null;
-}
+
 
 declare global {
   interface Window {

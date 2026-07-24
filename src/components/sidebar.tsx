@@ -7,13 +7,12 @@ import {
   LayoutDashboard,
   Receipt,
   Users,
+  Sparkles,
   Menu,
   X,
   LogOut,
   Star,
   Key,
-  Sun,
-  Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +44,11 @@ const navItems = [
     name: "Customers",
     href: "/customers",
     icon: Users,
+  },
+  {
+    name: "Voice Training",
+    href: "/voice-training",
+    icon: Sparkles,
   },
 ];
 
@@ -190,10 +194,12 @@ export function Sidebar({ initialStarredPath = "/dashboard", user }: SidebarProp
 
         {/* Sidebar Nav Links */}
         <nav className="flex-1 space-y-1.5 lg:space-y-2">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            const isStarred = starredPath === item.href;
-            const Icon = item.icon;
+          {navItems
+            .filter((item) => item.href !== "/voice-training" || user?.email?.toLowerCase() === "admin@gmail.com")
+            .map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const isStarred = starredPath === item.href;
+              const Icon = item.icon;
             return (
               <div
                 key={item.href}

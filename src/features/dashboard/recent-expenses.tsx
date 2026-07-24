@@ -67,7 +67,7 @@ export function RecentExpenses({ expenses }: RecentExpensesProps) {
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
-                         {expense.category ? (
+                        {expense.category ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
                             <Tag className="h-3 w-3" />
                             {expense.category}

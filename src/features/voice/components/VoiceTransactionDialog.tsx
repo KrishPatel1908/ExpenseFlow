@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mic, CheckCircle2, AlertCircle } from "lucide-react";
+import { createVoiceTrainingRecord } from "@/services/voice-training-actions";
+import type { ParsedTransaction } from "@/lib/nlp";
 
 export const voiceConfirmationSchema = z.object({
   customer: z.string().min(1, "Customer name is required"),
@@ -39,7 +41,9 @@ export interface VoiceTransactionDialogProps {
     category?: string;
     description?: string;
     date?: string;
+    confidence?: "high" | "medium" | "low";
   } | null;
+  rawParsedResult?: ParsedTransaction | null;
   onConfirm: (data: VoiceConfirmationFormValues) => void;
   onCancel?: () => void;
 }
@@ -49,6 +53,7 @@ export function VoiceTransactionDialog({
   onOpenChange,
   transcript = "",
   initialData,
+  rawParsedResult,
   onConfirm,
   onCancel,
 }: VoiceTransactionDialogProps) {
@@ -98,6 +103,53 @@ export function VoiceTransactionDialog({
   const currentType = watch("transactionType");
 
   const onSubmitForm = (values: VoiceConfirmationFormValues) => {
+    // Record Voice Training Data in background
+    if (transcript.trim()) {
+      const parsedCustomer = rawParsedResult?.customer || initialData?.customer || null;
+      const parsedAmount = rawParsedResult?.amount ?? (initialData?.amount || null);
+      const parsedTransactionType = rawParsedResult?.transactionType || initialData?.transactionType || null;
+      const parsedCategory = rawParsedResult?.category || initialData?.category || null;
+      const parsedDate = rawParsedResult?.date || initialData?.date || null;
+      const parsedDescription = rawParsedResult?.description || initialData?.description || null;
+      const confidence = rawParsedResult?.confidence || initialData?.confidence || "low";
+
+      const finalCustomer = values.customer.trim();
+      const finalAmount = values.amount;
+      const finalTransactionType = values.transactionType;
+      const finalCategory = values.category.trim() || null;
+      const finalDate = values.date;
+      const finalDescription = values.description.trim() || null;
+
+      const isCorrected =
+        (parsedCustomer || "").trim().toLowerCase() !== finalCustomer.toLowerCase() ||
+        Number(parsedAmount || 0) !== Number(finalAmount) ||
+        (parsedTransactionType || null) !== finalTransactionType ||
+        (parsedCategory || "").trim().toLowerCase() !== (finalCategory || "").toLowerCase() ||
+        (parsedDate || "") !== finalDate ||
+        (parsedDescription || "").trim().toLowerCase() !== (finalDescription || "").toLowerCase();
+
+      // Async fire and forget training record creation
+      void createVoiceTrainingRecord({
+        transcript: transcript.trim(),
+        parsedCustomer,
+        parsedAmount,
+        parsedTransactionType,
+        parsedCategory,
+        parsedDate,
+        parsedDescription,
+        confidence,
+        finalCustomer,
+        finalAmount,
+        finalTransactionType,
+        finalCategory,
+        finalDate,
+        finalDescription,
+        isCorrected,
+      }).catch((err) => {
+        console.warn("Failed to record voice training entry:", err);
+      });
+    }
+
     onConfirm(values);
     onOpenChange(false);
   };

@@ -1,21 +1,23 @@
 "use client";
 
 import { toast } from "sonner";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createExpense, updateExpense, getDistinctCustomers, getCategories } from "@/services/expense-actions";
-import { Search, Check } from "lucide-react";
+import { Loader2, CheckCircle2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CustomerAutocomplete } from "@/components/ui/customer-autocomplete";
+import { CategoryAutocomplete } from "@/components/ui/category-autocomplete";
 
 interface ExpenseFormProps {
   isOpen: boolean;
@@ -45,40 +47,29 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
   const [activeTab, setActiveTab] = useState<FormTab>("expense");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Autocomplete / Search states (Instant for input, debounced for filtering)
+  // Autocomplete data states
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [customersList, setCustomersList] = useState<CustomerOption[]>([]);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
-  
-  // Custom Category Suggestion States
-  const [showExpenseCatSuggestions, setShowExpenseCatSuggestions] = useState(false);
-  const [showCustCatSuggestions, setShowCustCatSuggestions] = useState(false);
-
-  // Refs for click outside handling
-  const suggestionRef = useRef<HTMLDivElement>(null);
-  const expenseCatRef = useRef<HTMLDivElement>(null);
-  const custCatRef = useRef<HTMLDivElement>(null);
 
   // Add Expense Form Fields
+  const [transactionType, setTransactionType] = useState<"credit" | "debit">("debit");
+  const [amount, setAmount] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("");
-  const [expenseCredit, setExpenseCredit] = useState("");
-  const [expenseDebit, setExpenseDebit] = useState("");
   const [expenseDate, setExpenseDate] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
 
   // Add Customer Form Fields
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
+  const [custTransactionType, setCustTransactionType] = useState<"credit" | "debit">("debit");
+  const [custAmount, setCustAmount] = useState("");
   const [custCategory, setCustCategory] = useState("");
-  const [custCredit, setCustCredit] = useState("");
-  const [custDebit, setCustDebit] = useState("");
   const [custDate, setCustDate] = useState("");
   const [custNote, setCustNote] = useState("");
 
-  // Format date to YYYY-MM-DD for HTML input
+  // Format date helper YYYY-MM-DD
   const formatDateForInput = (dateVal: Date | string | undefined) => {
     if (!dateVal) return "";
     const date = new Date(dateVal);
@@ -86,33 +77,23 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
     return date.toISOString().split("T")[0];
   };
 
-  // Debounce search input for autocomplete suggestions (500ms delay)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  // Load distinct customers and categories for autocomplete
   useEffect(() => {
     async function loadFormData() {
       try {
         const [customersData, categoriesData] = await Promise.all([
           getDistinctCustomers(),
-          getCategories()
+          getCategories(),
         ]);
-        
-        const formatted = customersData.map(c => ({
+
+        const formatted = customersData.map((c) => ({
           customerName: c.customerName,
           customerPhone: c.customerPhone || "",
-          category: c.category || ""
+          category: c.category || "",
         }));
         setCustomersList(formatted);
         setCategoriesList(categoriesData);
       } catch {
-        toast.error("Could not load customer suggestions. Please refresh the page.");
+        toast.error("Could not load customer suggestions.");
       }
     }
     if (isOpen) {
@@ -120,91 +101,60 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
     }
   }, [isOpen]);
 
-  // Click outside listener for all custom suggestion dropdowns
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-      if (expenseCatRef.current && !expenseCatRef.current.contains(event.target as Node)) {
-        setShowExpenseCatSuggestions(false);
-      }
-      if (custCatRef.current && !custCatRef.current.contains(event.target as Node)) {
-        setShowCustCatSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (!isOpen) return;
 
-  // Sync initialData when opening (Edit Mode)
-  useEffect(() => {
-    if (isOpen) {
+    const timer = setTimeout(() => {
       if (initialData) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveTab("expense");
         setSearchQuery(initialData.customerName || "");
         setSelectedCustomer({
           customerName: initialData.customerName,
           customerPhone: initialData.customerPhone || "",
-          category: initialData.category || ""
+          category: initialData.category || "",
         });
+        const creditVal = parseFloat(initialData.credit) || 0;
+        const debitVal = parseFloat(initialData.debit) || 0;
+
+        if (creditVal > 0) {
+          setTransactionType("credit");
+          setAmount(String(creditVal));
+        } else {
+          setTransactionType("debit");
+          setAmount(String(debitVal));
+        }
+
         setExpenseCategory(initialData.category || "");
-        setExpenseCredit(parseFloat(initialData.credit) > 0 ? initialData.credit : "0");
-        setExpenseDebit(parseFloat(initialData.debit) > 0 ? initialData.debit : "0");
         setExpenseDate(formatDateForInput(initialData.date));
         setExpenseNote(initialData.note || "");
       } else {
         setActiveTab("expense");
         setSearchQuery("");
         setSelectedCustomer(null);
+        setTransactionType("debit");
+        setAmount("");
         setExpenseCategory("");
-        setExpenseCredit("");
-        setExpenseDebit("");
         setExpenseDate(formatDateForInput(new Date()));
         setExpenseNote("");
 
-        // Reset Add Customer fields
         setCustName("");
         setCustPhone("");
+        setCustTransactionType("debit");
+        setCustAmount("");
         setCustCategory("");
-        setCustCredit("");
-        setCustDebit("");
         setCustDate(formatDateForInput(new Date()));
         setCustNote("");
       }
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [isOpen, initialData]);
 
-  const filteredCustomers = debouncedSearchQuery.trim() === ""
-    ? customersList
-    : customersList.filter(c =>
-      c.customerName.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-      c.customerPhone.includes(debouncedSearchQuery)
-    );
-
-  const filteredExpenseCategories = expenseCategory.trim() === ""
-    ? categoriesList
-    : categoriesList.filter(cat => cat.toLowerCase().includes(expenseCategory.toLowerCase()));
-
-  const filteredCustCategories = custCategory.trim() === ""
-    ? categoriesList
-    : categoriesList.filter(cat => cat.toLowerCase().includes(custCategory.toLowerCase()));
-
-  const handleSelectCustomer = (c: CustomerOption) => {
-    setSelectedCustomer(c);
-    setSearchQuery(c.customerName);
-    setExpenseCategory(c.category || "");
-    setShowSuggestions(false);
-  };
-
-  // Switch to Add Customer tab and prefill details
   const handleCreateNewCustomerFromSearch = (query: string) => {
     const cleanQuery = query.trim();
     setCustName("");
     setCustPhone("");
 
-    // If query contains only digits, treat it as a phone number. Otherwise, treat it as a customer name.
     if (/^\d+$/.test(cleanQuery)) {
       setCustPhone(cleanQuery.slice(0, 10));
     } else {
@@ -212,17 +162,14 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
     }
 
     setActiveTab("customer");
-    setShowSuggestions(false);
   };
 
-  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       if (activeTab === "expense" || initialData) {
-        // --- ADD / EDIT EXPENSE FORM ---
         if (!selectedCustomer) {
           toast.error("Please select an existing customer or create a new one.");
           setIsSubmitting(false);
@@ -235,10 +182,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           return;
         }
 
-        const creditVal = parseFloat(expenseCredit) || 0;
-        const debitVal = parseFloat(expenseDebit) || 0;
-
-        if (creditVal <= 0 && debitVal <= 0) {
+        const numAmount = parseFloat(amount) || 0;
+        if (numAmount <= 0) {
           toast.error("Transaction amount must be greater than zero.");
           setIsSubmitting(false);
           return;
@@ -250,8 +195,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           customerName: selectedCustomer.customerName,
           customerPhone: selectedCustomer.customerPhone,
           category: expenseCategory || undefined,
-          credit: creditVal,
-          debit: debitVal,
+          credit: transactionType === "credit" ? numAmount : 0,
+          debit: transactionType === "debit" ? numAmount : 0,
           date: finalDate,
           note: expenseNote || undefined,
         };
@@ -261,33 +206,27 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           : await createExpense(payload);
 
         if (res.error) {
-          if (res.error.includes("unique") || res.error.includes("already exists")) {
-            toast.error("A customer with this mobile number already exists.");
-          } else {
-            toast.error("Failed to save transaction. Please check your inputs and try again.");
-          }
+          toast.error(res.error);
         } else {
           toast.success(initialData?.id ? "Transaction updated successfully!" : "Transaction recorded successfully!");
           onSuccess();
           onOpenChange(false);
         }
       } else {
-        // --- ADD CUSTOMER FORM ---
         if (!custName || custName.trim().length < 2) {
           toast.error("Please enter a customer name (at least 2 characters).");
           setIsSubmitting(false);
           return;
         }
+
         if (custPhone && custPhone.trim() && custPhone.trim().length !== 10) {
           toast.error("Mobile number must be 10 digits if provided.");
           setIsSubmitting(false);
           return;
         }
 
-        const creditVal = parseFloat(custCredit) || 0;
-        const debitVal = parseFloat(custDebit) || 0;
-
-        if (creditVal <= 0 && debitVal <= 0) {
+        const numAmount = parseFloat(custAmount) || 0;
+        if (numAmount <= 0) {
           toast.error("Transaction amount must be greater than zero.");
           setIsSubmitting(false);
           return;
@@ -299,8 +238,8 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
           customerName: custName,
           customerPhone: custPhone,
           category: custCategory || undefined,
-          credit: creditVal,
-          debit: debitVal,
+          credit: custTransactionType === "credit" ? numAmount : 0,
+          debit: custTransactionType === "debit" ? numAmount : 0,
           date: finalDate,
           note: custNote || undefined,
         };
@@ -308,13 +247,9 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
         const res = await createExpense(payload);
 
         if (res.error) {
-          if (res.error.includes("unique") || res.error.includes("already exists")) {
-            toast.error("A customer with this mobile number already exists.");
-          } else {
-            toast.error("Failed to create customer. Please check your inputs.");
-          }
+          toast.error(res.error);
         } else {
-          toast.success("Customer and initial balance recorded!");
+          toast.success("Customer and initial transaction recorded!");
           onSuccess();
           onOpenChange(false);
         }
@@ -329,398 +264,362 @@ export function ExpenseForm({ isOpen, onOpenChange, initialData, onSuccess }: Ex
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+        {/* Header matching VoiceTransactionDialog */}
+        <DialogHeader className="p-6 pb-4 bg-slate-50/70 border-b border-slate-100">
+          <DialogTitle className="text-xl font-bold text-slate-900">
+            {initialData?.id
+              ? "Edit Transaction"
+              : activeTab === "expense"
+              ? "Add Expense"
+              : "Add New Customer"}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-slate-500">
+            {initialData
+              ? "Update this transaction's details below."
+              : activeTab === "expense"
+              ? "Record a new transaction for a customer."
+              : "Create a new customer profile and record initial balance."}
+          </DialogDescription>
 
-        {/* Tab Headers */}
-        {!initialData && (
-          <div className="flex border-b border-slate-100 bg-slate-50/50">
-            <button
-              type="button"
-              onClick={() => setActiveTab("expense")}
-              className={cn(
-                "flex-1 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer",
-                activeTab === "expense"
-                  ? "border-[#0b132a] text-[#0b132a] bg-white"
-                  : "border-transparent text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Add Expense
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("customer")}
-              className={cn(
-                "flex-1 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer",
-                activeTab === "customer"
-                  ? "border-[#0b132a] text-[#0b132a] bg-white"
-                  : "border-transparent text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Add Customer
-            </button>
-          </div>
-        )}
+          {!initialData && (
+            <div className="flex bg-slate-200/60 p-1 rounded-xl gap-1 mt-3 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab("expense")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  activeTab === "expense"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Existing Customer
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("customer")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  activeTab === "customer"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                New Customer
+              </button>
+            </div>
+          )}
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="p-6">
-            <DialogHeader className="mb-4">
-              <DialogTitle>
-                {initialData?.id
-                  ? "Edit Transaction"
-                  : activeTab === "expense"
-                    ? "Add Expense"
-                    : "Add New Customer"
-                }
-              </DialogTitle>
-              <DialogDescription>
-                {initialData
-                  ? "Update this transaction's details."
-                  : activeTab === "expense"
-                    ? "Record a new transaction for an existing customer."
-                    : "Create a new customer profile and record their initial balance."
-                }
-              </DialogDescription>
-            </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 p-6 pt-4">
+          {activeTab === "expense" || initialData ? (
+            /* --- EXISTING CUSTOMER EXPENSE FORM VIEW --- */
+            <div className="space-y-4">
+              {/* Customer Search Autocomplete */}
+              <CustomerAutocomplete
+                id="customerSearch"
+                label="Customer Name"
+                value={searchQuery}
+                onChange={(val, option) => {
+                  setSearchQuery(val);
+                  if (option) {
+                    setSelectedCustomer(option);
+                    setExpenseCategory(option.category || "");
+                  } else {
+                    setSelectedCustomer(val.trim() ? { customerName: val, customerPhone: selectedCustomer?.customerPhone || "" } : null);
+                  }
+                }}
+                onSelectCustomer={(c) => {
+                  setSelectedCustomer(c);
+                  setSearchQuery(c.customerName);
+                  setExpenseCategory(c.category || "");
+                }}
+                onAddNewCustomer={(query) => handleCreateNewCustomerFromSearch(query)}
+                customersList={customersList}
+                disabled={!!initialData?.id}
+                required
+              />
 
-            {activeTab === "expense" || initialData ? (
-              /* --- ADD/EDIT EXPENSE FORM VIEW --- */
-              <div className="space-y-4">
-                {/* Search / Select Customer */}
-                <div className="space-y-1.5 relative">
-                  <Label htmlFor="customerSearch" className="text-slate-700 font-bold">Search Customer</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="customerSearch"
-                      type="text"
-                      placeholder="Search by name or mobile..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setShowSuggestions(true);
-                      }}
-                      onFocus={() => setShowSuggestions(true)}
-                      className="pl-9 h-10 text-sm"
-                      disabled={!!initialData?.id}
-                      required
-                    />
-                  </div>
+              {/* Mobile Number (Optional) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="expense-customer-phone" className="text-slate-700 font-bold text-xs">
+                  Mobile Number <span className="text-slate-400 font-normal">(Optional)</span>
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="expense-customer-phone"
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={selectedCustomer?.customerPhone || ""}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setSelectedCustomer((prev) =>
+                        prev
+                          ? { ...prev, customerPhone: clean }
+                          : { customerName: searchQuery, customerPhone: clean }
+                      );
+                    }}
+                    className="pl-9 h-10 text-sm font-medium"
+                  />
+                </div>
+              </div>
 
-                  {/* Autocomplete Dropdown */}
-                  {showSuggestions && !initialData && (
-                    <div
-                      ref={suggestionRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-48 overflow-y-auto p-1.5 space-y-1"
-                    >
-                      {filteredCustomers.length === 0 ? (
-                        <div className="p-3 text-center space-y-2">
-                          <p className="text-xs text-slate-400">No matching customers found.</p>
-                          <button
-                            type="button"
-                            onClick={() => handleCreateNewCustomerFromSearch(searchQuery)}
-                            className="w-full text-xs font-bold text-blue-650 hover:text-blue-800 hover:bg-blue-50/50 py-2.5 border border-dashed border-blue-200 rounded-xl transition-all cursor-pointer"
-                          >
-                            + Add &quot;{searchQuery}&quot; as New Customer
-                          </button>
-                        </div>
-                      ) : (
-                        filteredCustomers.map((c) => {
-                          const isSelected = selectedCustomer?.customerName === c.customerName;
-                          return (
-                            <button
-                              key={c.customerName}
-                              type="button"
-                              onClick={() => handleSelectCustomer(c)}
-                              className={cn(
-                                "flex items-center justify-between w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer",
-                                isSelected
-                                  ? "bg-[#0b132a] text-white font-semibold"
-                                  : "text-slate-700 hover:bg-slate-100"
-                              )}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-semibold">{c.customerName}</span>
-                                <span className="text-[10px] opacity-80">{c.customerPhone}</span>
-                              </div>
-                              {isSelected && <Check className="h-3.5 w-3.5" />}
-                            </button>
-                          );
-                        })
+              {/* Amount & Transaction Type in a Row (Matching VoiceTransactionDialog) */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Amount Input */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="expenseAmount" className="text-slate-700 font-bold text-xs">
+                    Amount (₹) <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="expenseAmount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="h-10 text-sm font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* Transaction Type Buttons */}
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 font-bold text-xs">Transaction Type</Label>
+                  <div className="flex bg-slate-100 p-1 rounded-lg gap-1 border border-slate-200" role="radiogroup" aria-label="Transaction Type">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={transactionType === "credit"}
+                      onClick={() => setTransactionType("credit")}
+                      className={cn(
+                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
+                        transactionType === "credit"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
                       )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Credit & Debit in a Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="expenseCredit" className="text-emerald-600 font-bold">Credit</Label>
-                    <Input
-                      id="expenseCredit"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="₹ 0.00"
-                      value={expenseCredit}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setExpenseCredit(val);
-                        if (parseFloat(val) > 0) {
-                          setExpenseDebit("0");
-                        }
-                      }}
-                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="expenseDebit" className="text-red-600 font-bold">Debit</Label>
-                    <Input
-                      id="expenseDebit"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="₹ 0.00"
-                      value={expenseDebit}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setExpenseDebit(val);
-                        if (parseFloat(val) > 0) {
-                          setExpenseCredit("0");
-                        }
-                      }}
-                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Category with Custom Autocomplete Dropdown */}
-                <div className="space-y-1.5 relative">
-                  <Label htmlFor="expenseCategory" className="text-slate-700 font-bold">Category (Optional)</Label>
-                  <Input
-                    id="expenseCategory"
-                    type="text"
-                    placeholder="Enter or search category..."
-                    value={expenseCategory}
-                    onChange={(e) => {
-                      setExpenseCategory(e.target.value);
-                      setShowExpenseCatSuggestions(true);
-                    }}
-                    onFocus={() => setShowExpenseCatSuggestions(true)}
-                    className="h-10 text-sm"
-                  />
-                  {showExpenseCatSuggestions && filteredExpenseCategories.length > 0 && (
-                    <div
-                      ref={expenseCatRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-[140px] overflow-y-auto p-1.5 space-y-1"
                     >
-                      {filteredExpenseCategories.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setExpenseCategory(cat);
-                            setShowExpenseCatSuggestions(false);
-                          }}
-                          className="flex items-center justify-between w-full text-left px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <span>{cat}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      Credit
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={transactionType === "debit"}
+                      onClick={() => setTransactionType("debit")}
+                      className={cn(
+                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
+                        transactionType === "debit"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Debit
+                    </button>
+                  </div>
                 </div>
+              </div>
 
-                {/* Date */}
+              {/* Category Autocomplete */}
+              <CategoryAutocomplete
+                id="expenseCategory"
+                label="Category"
+                value={expenseCategory}
+                onChange={(val) => setExpenseCategory(val)}
+                categoriesList={categoriesList}
+              />
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <Label htmlFor="expenseDate" className="text-slate-700 font-bold text-xs">
+                  Date <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="expenseDate"
+                  type="date"
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                  className="h-10 text-sm"
+                  required
+                />
+              </div>
+
+              {/* Description / Note */}
+              <div className="space-y-1.5">
+                <Label htmlFor="expenseNote" className="text-slate-700 font-bold text-xs">
+                  Description / Note
+                </Label>
+                <Input
+                  id="expenseNote"
+                  type="text"
+                  placeholder="Short transaction description"
+                  value={expenseNote}
+                  onChange={(e) => setExpenseNote(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+            </div>
+          ) : (
+            /* --- NEW CUSTOMER FORM VIEW --- */
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="expenseDate" className="text-slate-700 font-bold">Date</Label>
+                  <Label htmlFor="custName" className="text-slate-700 font-bold text-xs">
+                    Customer Name <span className="text-rose-500">*</span>
+                  </Label>
                   <Input
-                    id="expenseDate"
-                    type="date"
-                    value={expenseDate}
-                    onChange={(e) => setExpenseDate(e.target.value)}
+                    id="custName"
+                    type="text"
+                    placeholder="Enter name..."
+                    value={custName}
+                    onChange={(e) => setCustName(e.target.value)}
                     className="h-10 text-sm"
                     required
                   />
                 </div>
-
-                {/* Note */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="expenseNote" className="text-slate-700 font-bold">Note (Optional)</Label>
+                  <Label htmlFor="custPhone" className="text-slate-700 font-bold text-xs">
+                    Mobile Number
+                  </Label>
                   <Input
-                    id="expenseNote"
-                    type="text"
-                    placeholder="Enter short note..."
-                    value={expenseNote}
-                    onChange={(e) => setExpenseNote(e.target.value)}
+                    id="custPhone"
+                    type="tel"
+                    placeholder="10-digit mobile..."
+                    value={custPhone}
+                    onChange={(e) => setCustPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="h-10 text-sm"
                   />
                 </div>
               </div>
-            ) : (
-              /* --- ADD CUSTOMER FORM VIEW --- */
-              <div className="space-y-4">
-                {/* Cust Name & Mobile */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="custName" className="text-slate-700 font-bold">Customer Name</Label>
-                    <Input
-                      id="custName"
-                      type="text"
-                      placeholder="Enter name..."
-                      value={custName}
-                      onChange={(e) => setCustName(e.target.value)}
-                      className="h-10 text-sm"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="custPhone" className="text-slate-700 font-bold">Mobile Number</Label>
-                    <Input
-                      id="custPhone"
-                      type="tel"
-                      placeholder="10-digit mobile..."
-                      value={custPhone}
-                      onChange={(e) => setCustPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="h-10 text-sm"
-                      required
-                    />
-                  </div>
-                </div>
 
-                {/* Category with Custom Autocomplete Dropdown */}
-                <div className="space-y-1.5 relative">
-                  <Label htmlFor="custCategory" className="text-slate-700 font-bold">Category (Optional)</Label>
-                  <Input
-                    id="custCategory"
-                    type="text"
-                    placeholder="Enter or search category..."
-                    value={custCategory}
-                    onChange={(e) => {
-                      setCustCategory(e.target.value);
-                      setShowCustCatSuggestions(true);
-                    }}
-                    onFocus={() => setShowCustCatSuggestions(true)}
-                    className="h-10 text-sm"
-                  />
-                  {showCustCatSuggestions && filteredCustCategories.length > 0 && (
-                    <div
-                      ref={custCatRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-[140px] overflow-y-auto p-1.5 space-y-1"
-                    >
-                      {filteredCustCategories.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setCustCategory(cat);
-                            setShowCustCatSuggestions(false);
-                          }}
-                          className="flex items-center justify-between w-full text-left px-3 py-2 rounded-md text-xs text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <span>{cat}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Credit & Debit in a Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="custCredit" className="text-emerald-600 font-bold">Credit</Label>
-                    <Input
-                      id="custCredit"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="₹ 0.00"
-                      value={custCredit}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCustCredit(val);
-                        if (parseFloat(val) > 0) {
-                          setCustDebit("0");
-                        }
-                      }}
-                      className="focus-visible:ring-emerald-500 focus:border-emerald-500 border-emerald-200 text-emerald-700 placeholder:text-emerald-300 h-10 text-sm font-semibold"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="custDebit" className="text-red-600 font-bold">Debit</Label>
-                    <Input
-                      id="custDebit"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="₹ 0.00"
-                      value={custDebit}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCustDebit(val);
-                        if (parseFloat(val) > 0) {
-                          setCustCredit("0");
-                        }
-                      }}
-                      className="focus-visible:ring-red-500 focus:border-red-500 border-red-200 text-red-700 placeholder:text-red-300 h-10 text-sm font-semibold"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Date */}
+              {/* Amount & Transaction Type */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="custDate" className="text-slate-700 font-bold">Date</Label>
+                  <Label htmlFor="custAmount" className="text-slate-700 font-bold text-xs">
+                    Amount (₹) <span className="text-rose-500">*</span>
+                  </Label>
                   <Input
-                    id="custDate"
-                    type="date"
-                    value={custDate}
-                    onChange={(e) => setCustDate(e.target.value)}
-                    className="h-10 text-sm"
+                    id="custAmount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={custAmount}
+                    onChange={(e) => setCustAmount(e.target.value)}
+                    className="h-10 text-sm font-semibold"
                     required
                   />
                 </div>
 
-                {/* Note */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="custNote" className="text-slate-700 font-bold">Note (Optional)</Label>
-                  <Input
-                    id="custNote"
-                    type="text"
-                    placeholder="Enter short note..."
-                    value={custNote}
-                    onChange={(e) => setCustNote(e.target.value)}
-                    className="h-10 text-sm"
-                  />
+                  <Label className="text-slate-700 font-bold text-xs">Transaction Type</Label>
+                  <div className="flex bg-slate-100 p-1 rounded-lg gap-1 border border-slate-200" role="radiogroup">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={custTransactionType === "credit"}
+                      onClick={() => setCustTransactionType("credit")}
+                      className={cn(
+                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
+                        custTransactionType === "credit"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Credit
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={custTransactionType === "debit"}
+                      onClick={() => setCustTransactionType("debit")}
+                      className={cn(
+                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
+                        custTransactionType === "debit"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Debit
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <DialogFooter className="p-6 bg-slate-50/50 border-t border-slate-100">
+              {/* Category Autocomplete */}
+              <CategoryAutocomplete
+                id="custCategory"
+                label="Category"
+                value={custCategory}
+                onChange={(val) => setCustCategory(val)}
+                categoriesList={categoriesList}
+              />
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <Label htmlFor="custDate" className="text-slate-700 font-bold text-xs">
+                  Date <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="custDate"
+                  type="date"
+                  value={custDate}
+                  onChange={(e) => setCustDate(e.target.value)}
+                  className="h-10 text-sm"
+                  required
+                />
+              </div>
+
+              {/* Note */}
+              <div className="space-y-1.5">
+                <Label htmlFor="custNote" className="text-slate-700 font-bold text-xs">
+                  Description / Note
+                </Label>
+                <Input
+                  id="custNote"
+                  type="text"
+                  placeholder="Short transaction description"
+                  value={custNote}
+                  onChange={(e) => setCustNote(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="cursor-pointer"
+              className="cursor-pointer text-xs"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-[#0b132a] hover:bg-[#1a284e] text-white font-semibold cursor-pointer"
+              className="bg-[#0b132a] hover:bg-[#1a284e] text-white font-semibold gap-1.5 cursor-pointer text-xs"
             >
-              {isSubmitting
-                ? "Saving..."
-                : initialData
-                  ? "Save Changes"
-                  : activeTab === "expense"
-                    ? "Add Expense"
-                    : "Create Customer"
-              }
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>
+                    {initialData
+                      ? "Save Changes"
+                      : activeTab === "expense"
+                      ? "Add Expense"
+                      : "Create Customer"}
+                  </span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

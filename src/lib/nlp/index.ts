@@ -5,4 +5,7 @@ export * from "./categories";
 export * from "./customers";
 export * from "./amount";
 export * from "./transaction";
+export * from "./pronouns";
+export * from "./relation";
 export * from "./parser";
+

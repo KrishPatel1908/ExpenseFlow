@@ -14,7 +14,7 @@ export const customerSchema = z.object({
   phone: z
     .string()
     .refine((val) => !val || val.trim() === "" || /^\d{10}$/.test(val.trim()), {
-      message: "Mobile number must be exactly 10 digits if entered",
+      message: "Mobile number must be a 10-digit number if provided",
     })
     .optional()
     .or(z.literal("")),

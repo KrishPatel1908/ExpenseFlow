@@ -49,6 +49,16 @@ const PRESET_TEST_CASES = [
     language: "gu-IN" as NlpLanguageCode,
     transcript: "આજે 25000 પગાર મળ્યો.",
   },
+  {
+    label: "EN 5: 5th July 500 petrol",
+    language: "en-IN" as NlpLanguageCode,
+    transcript: "5th July 500 petrol",
+  },
+  {
+    label: "GU 4: ૫ જુલાઈ 300 પેટ્રોલ આપ્યા",
+    language: "gu-IN" as NlpLanguageCode,
+    transcript: "૫ જુલાઈ 300 પેટ્રોલ આપ્યા",
+  },
 ];
 
 export default function DevParserPage() {

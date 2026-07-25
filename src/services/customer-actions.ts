@@ -273,3 +273,31 @@ export async function deleteCustomerProfile(id: string) {
     return { error: message };
   }
 }
+
+/**
+ * Permanently deletes ALL customer profiles and associated expenses belonging to the current user.
+ */
+export async function deleteAllCustomers() {
+  try {
+    const userId = await getRequiredUserId();
+
+    // First delete expenses for user
+    await db
+      .delete(expenses)
+      .where(eq(expenses.userId, userId));
+
+    const deletedRows = await db
+      .delete(customers)
+      .where(eq(customers.userId, userId))
+      .returning({ id: customers.id });
+
+    revalidatePath("/customers");
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    return { success: true, deletedCount: deletedRows.length };
+  } catch (error: unknown) {
+    console.error("Failed to delete all customers:", error);
+    const message = error instanceof Error ? error.message : "Failed to delete customer profiles.";
+    return { error: message };
+  }
+}

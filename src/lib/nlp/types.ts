@@ -15,7 +15,14 @@ export interface ParsedTransaction {
   confidence: ConfidenceLevel;
 }
 
+export interface LearningRule {
+  phrase: string;
+  detectedField: string;
+  correctedValue: string;
+}
+
 export interface ParseOptions {
   language?: NlpLanguageCode;
   availableCategories?: string[];
+  learningRules?: LearningRule[];
 }

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import type { VoiceTrainingItem } from "@/services/voice-training-actions";
 import { VoiceTrainingDetailDialog } from "./VoiceTrainingDetailDialog";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
-import { Eye, ChevronLeft, ChevronRight, Inbox, CheckCircle2, AlertTriangle, User } from "lucide-react";
+import { Eye, ChevronLeft, ChevronRight, Inbox, CheckCircle2, AlertTriangle, User, Trash2 } from "lucide-react";
 
 export interface VoiceTrainingTableProps {
   records: VoiceTrainingItem[];
@@ -15,6 +16,7 @@ export interface VoiceTrainingTableProps {
   pageSize: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  onDeleteRecord: (id: string) => Promise<void>;
 }
 
 export function VoiceTrainingTable({
@@ -26,13 +28,30 @@ export function VoiceTrainingTable({
   pageSize,
   onPageChange,
   onPageSizeChange,
+  onDeleteRecord,
 }: VoiceTrainingTableProps) {
   const [selectedRecord, setSelectedRecord] = useState<VoiceTrainingItem | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
+  const [recordToDelete, setRecordToDelete] = useState<VoiceTrainingItem | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleOpenDetail = (rec: VoiceTrainingItem) => {
     setSelectedRecord(rec);
     setDetailDialogOpen(true);
+  };
+
+  const handleConfirmSingleDelete = async () => {
+    if (!recordToDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteRecord(recordToDelete.id);
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmOpen(false);
+      setRecordToDelete(null);
+    }
   };
 
   const getConfidenceBadge = (conf: string) => {
@@ -185,16 +204,32 @@ export function VoiceTrainingTable({
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenDetail(rec)}
-                        className="text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 gap-1.5 cursor-pointer"
-                      >
-                        <Eye className="h-3.5 w-3.5 text-slate-500" />
-                        <span>Compare</span>
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenDetail(rec)}
+                          className="text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 gap-1.5 cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5 text-slate-500" />
+                          <span>Compare</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRecordToDelete(rec);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          title="Delete Record"
+                          className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50 h-8 w-8 p-0 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -261,6 +296,17 @@ export function VoiceTrainingTable({
         record={selectedRecord}
         isOpen={detailDialogOpen}
         onOpenChange={setDetailDialogOpen}
+      />
+
+      {/* Delete Single Record Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={handleConfirmSingleDelete}
+        title="Delete Voice Training Record"
+        description="Are you sure you want to delete this voice training record? This action cannot be undone."
+        confirmText="Delete"
+        isSubmitting={isDeleting}
       />
     </div>
   );

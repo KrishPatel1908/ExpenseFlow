@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, varchar, numeric, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, varchar, numeric, timestamp, boolean, integer, index } from "drizzle-orm/pg-core";
 
 export const customers = pgTable("customers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -64,4 +64,20 @@ export const voiceTraining = pgTable("voice_training", {
   index("voice_training_user_email_idx").on(table.userEmail),
   index("voice_training_confidence_idx").on(table.confidence),
   index("voice_training_is_corrected_idx").on(table.isCorrected),
+]));
+
+export const voiceLearningDictionary = pgTable("voice_learning_dictionary", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  phrase: text("phrase").notNull(),
+  detectedField: text("detected_field").notNull(),
+  correctedValue: text("corrected_value").notNull(),
+  language: text("language").notNull().default("en-IN"),
+  usageCount: integer("usage_count").notNull().default(1),
+  approved: boolean("approved").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ([
+  index("voice_learning_phrase_idx").on(table.phrase),
+  index("voice_learning_field_idx").on(table.detectedField),
+  index("voice_learning_approved_idx").on(table.approved),
 ]));

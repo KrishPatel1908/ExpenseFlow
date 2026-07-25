@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useVoiceTrainingPage } from "../use-voice-training-page";
 import { VoiceTrainingTable } from "./VoiceTrainingTable";
 import { PageLayoutLock } from "@/components/page-layout-lock";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, RefreshCw, X, Sparkles, AlertCircle, UserCheck } from "lucide-react";
+import { Search, Filter, RefreshCw, X, Sparkles, AlertCircle, UserCheck, Trash2 } from "lucide-react";
+import { deleteVoiceTrainingRecord, deleteAllVoiceTrainingRecords } from "@/services/voice-training-actions";
+import { toast } from "sonner";
 
 export function VoiceTrainingClientView() {
   const {
@@ -32,6 +36,39 @@ export function VoiceTrainingClientView() {
     reload,
   } = useVoiceTrainingPage();
 
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  const handleDeleteSingleRecord = async (id: string) => {
+    const res = await deleteVoiceTrainingRecord(id);
+    if ("error" in res && res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Voice training record deleted successfully.");
+      await reload();
+    }
+  };
+
+  const handleDeleteAllRecords = async () => {
+    setIsDeletingAll(true);
+    try {
+      const res = await deleteAllVoiceTrainingRecords();
+      if ("error" in res && res.error) {
+        toast.error(res.error);
+      } else {
+        const countDeleted = res.deletedCount !== undefined ? res.deletedCount : totalCount;
+        toast.success(`Successfully deleted ${countDeleted} voice training records.`);
+        await reload();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete voice training records.";
+      toast.error(msg);
+    } finally {
+      setIsDeletingAll(false);
+      setDeleteAllConfirmOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 space-y-6 pb-4 sm:pb-0">
       <PageLayoutLock />
@@ -51,16 +88,30 @@ export function VoiceTrainingClientView() {
           </p>
         </div>
 
-        <Button
-          type="button"
-          onClick={reload}
-          disabled={loading}
-          variant="outline"
-          className="gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer self-start sm:self-auto text-xs"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Data</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {totalCount > 0 && (
+            <Button
+              type="button"
+              onClick={() => setDeleteAllConfirmOpen(true)}
+              variant="outline"
+              className="gap-1.5 font-semibold text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete All Records</span>
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            onClick={reload}
+            disabled={loading}
+            variant="outline"
+            className="gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer text-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Refresh Data</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -193,6 +244,18 @@ export function VoiceTrainingClientView() {
           setPageSize(newSize);
           setPage(1);
         }}
+        onDeleteRecord={handleDeleteSingleRecord}
+      />
+
+      {/* Delete All Records Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={deleteAllConfirmOpen}
+        onOpenChange={setDeleteAllConfirmOpen}
+        onConfirm={handleDeleteAllRecords}
+        title="Delete All Voice Training Records"
+        description={`Delete all ${totalCount} voice training records? This action cannot be undone.`}
+        confirmText="Delete All"
+        isSubmitting={isDeletingAll}
       />
     </div>
   );

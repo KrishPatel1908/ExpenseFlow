@@ -14,6 +14,7 @@ import { getSpeechRecognitionClass, isSpeechRecognitionSupported } from "../util
 export interface UseSpeechRecognitionOptions {
   initialLanguage?: VoiceLanguageCode;
   silenceTimeoutMs?: number;
+  onSilenceTimeout?: () => void;
 }
 
 export interface UseSpeechRecognitionReturn {
@@ -25,6 +26,7 @@ export interface UseSpeechRecognitionReturn {
   language: VoiceLanguageCode;
   start: () => void;
   stop: () => void;
+  abort: () => void;
   reset: () => void;
   changeLanguage: (lang: VoiceLanguageCode) => void;
 }
@@ -32,7 +34,7 @@ export interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions = {}
 ): UseSpeechRecognitionReturn {
-  const { initialLanguage = "en-IN", silenceTimeoutMs = 7000 } = options;
+  const { initialLanguage = "en-IN", silenceTimeoutMs = 3000, onSilenceTimeout } = options;
 
   const [language, setLanguage] = useState<VoiceLanguageCode>(initialLanguage);
   const [transcript, setTranscript] = useState<string>("");
@@ -45,6 +47,11 @@ export function useSpeechRecognition(
   const recognitionRef = useRef<ISpeechRecognitionInstance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isManuallyStoppedRef = useRef<boolean>(false);
+  const onSilenceTimeoutRef = useRef<(() => void) | undefined>(onSilenceTimeout);
+
+  useEffect(() => {
+    onSilenceTimeoutRef.current = onSilenceTimeout;
+  }, [onSilenceTimeout]);
 
   // Helper to clear silence timer
   const clearSilenceTimer = useCallback(() => {
@@ -60,7 +67,14 @@ export function useSpeechRecognition(
     if (silenceTimeoutMs > 0) {
       silenceTimerRef.current = setTimeout(() => {
         if (recognitionRef.current && isListening) {
-          recognitionRef.current.stop();
+          try {
+            recognitionRef.current.stop();
+          } catch {
+            // Ignore
+          }
+          if (onSilenceTimeoutRef.current) {
+            onSilenceTimeoutRef.current();
+          }
         }
       }, silenceTimeoutMs);
     }
@@ -102,7 +116,7 @@ export function useSpeechRecognition(
     []
   );
 
-  // Stop recognition manually
+  // Stop recognition manually (preserves transcript for processing)
   const stop = useCallback(() => {
     isManuallyStoppedRef.current = true;
     clearSilenceTimer();
@@ -115,6 +129,15 @@ export function useSpeechRecognition(
     }
     setIsListening(false);
   }, [clearSilenceTimer]);
+
+  // Abort recognition immediately (cancels timers, clears transcript, completely resets state)
+  const abort = useCallback(() => {
+    isManuallyStoppedRef.current = true;
+    clearSilenceTimer();
+    destroyRecognition();
+    reset();
+    setIsListening(false);
+  }, [clearSilenceTimer, destroyRecognition, reset]);
 
   // Start recognition
   const start = useCallback(() => {
@@ -227,6 +250,7 @@ export function useSpeechRecognition(
     language,
     start,
     stop,
+    abort,
     reset,
     changeLanguage,
   };

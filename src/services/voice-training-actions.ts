@@ -125,19 +125,26 @@ export async function createVoiceTrainingRecord(input: CreateVoiceTrainingInput)
 }
 
 /**
- * Fetches paginated voice training records from ALL users for developer review.
- * AUTHORIZATION: Only admin@gmail.com can call this action.
+ * Fetches paginated voice training records.
+ * Super Admin (admin@gmail.com) receives records across ALL users.
+ * Normal users receive only their OWN records.
+ * AUTHORIZATION: Enforced strictly server-side.
  */
 export async function getVoiceTrainingRecords(params: GetVoiceTrainingParams = {}) {
   try {
-    // Perform strict server-side admin check
-    await verifyAdminUser();
+    const user = await getRequiredUser();
+    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     const page = Math.max(1, params.page || 1);
     const pageSize = Math.max(1, Math.min(100, params.pageSize || 10));
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
+
+    // Security scope: Non-admin users can ONLY query their own records
+    if (!isAdmin) {
+      conditions.push(eq(voiceTraining.userId, user.id));
+    }
 
     // Search by transcript OR userEmail
     if (params.search && params.search.trim() !== "") {
@@ -206,6 +213,7 @@ export async function getVoiceTrainingRecords(params: GetVoiceTrainingParams = {
     const distinctEmailsResult = await db
       .select({ email: voiceTraining.userEmail })
       .from(voiceTraining)
+      .where(isAdmin ? undefined : eq(voiceTraining.userId, user.id))
       .groupBy(voiceTraining.userEmail);
 
     const distinctUserEmails = distinctEmailsResult
@@ -221,5 +229,69 @@ export async function getVoiceTrainingRecords(params: GetVoiceTrainingParams = {
   } catch (err: unknown) {
     console.error("Error fetching voice training records:", err);
     throw err;
+  }
+}
+
+/**
+ * Permanently deletes a single voice training record.
+ * Super Admin (admin@gmail.com) can delete ANY record.
+ * Normal users can ONLY delete their OWN record.
+ * SECURITY: Enforced strictly server-side.
+ */
+export async function deleteVoiceTrainingRecord(id: string) {
+  try {
+    const user = await getRequiredUser();
+    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+    if (!id || !id.trim()) {
+      return { error: "Record ID is required." };
+    }
+
+    const whereClause = isAdmin
+      ? eq(voiceTraining.id, id)
+      : and(eq(voiceTraining.id, id), eq(voiceTraining.userId, user.id));
+
+    const [deleted] = await db
+      .delete(voiceTraining)
+      .where(whereClause)
+      .returning({ id: voiceTraining.id });
+
+    if (!deleted) {
+      return { error: "Record not found or you are not authorized to delete it." };
+    }
+
+    revalidatePath("/voice-training");
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("Error deleting voice training record:", err);
+    const msg = err instanceof Error ? err.message : "Failed to delete voice training record.";
+    return { error: msg };
+  }
+}
+
+/**
+ * Permanently deletes ALL voice training records across all users.
+ * Super Admin (admin@gmail.com) ONLY can perform this global operation.
+ * SECURITY: Enforced strictly server-side.
+ */
+export async function deleteAllVoiceTrainingRecords() {
+  try {
+    const user = await getRequiredUser();
+    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+    if (!isAdmin) {
+      return { error: "403 Forbidden: Only Super Admin can delete all voice training records." };
+    }
+
+    const deletedRows = await db
+      .delete(voiceTraining)
+      .returning({ id: voiceTraining.id });
+
+    revalidatePath("/voice-training");
+    return { success: true, deletedCount: deletedRows.length };
+  } catch (err: unknown) {
+    console.error("Error deleting all voice training records:", err);
+    const msg = err instanceof Error ? err.message : "Failed to delete voice training records.";
+    return { error: msg };
   }
 }

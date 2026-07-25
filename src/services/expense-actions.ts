@@ -186,7 +186,7 @@ export async function createExpense(data: ExpenseInput) {
     // Check if customer already exists for this admin by phone or name
     const existing = validated.customerPhone && validated.customerPhone.trim()
       ? await db
-          .select({ id: customers.id, name: customers.name })
+          .select({ id: customers.id, name: customers.name, phone: customers.phone })
           .from(customers)
           .where(
             and(
@@ -196,7 +196,7 @@ export async function createExpense(data: ExpenseInput) {
           )
           .limit(1)
       : await db
-          .select({ id: customers.id, name: customers.name })
+          .select({ id: customers.id, name: customers.name, phone: customers.phone })
           .from(customers)
           .where(
             and(
@@ -209,10 +209,17 @@ export async function createExpense(data: ExpenseInput) {
     let customerId: string;
     if (existing.length > 0) {
       customerId = existing[0].id;
+      const updates: { name?: string; phone?: string; updatedAt: Date } = { updatedAt: new Date() };
       if (existing[0].name !== validated.customerName) {
+        updates.name = validated.customerName;
+      }
+      if (validated.customerPhone && validated.customerPhone.trim() && existing[0].phone !== validated.customerPhone.trim()) {
+        updates.phone = validated.customerPhone.trim();
+      }
+      if (Object.keys(updates).length > 1) {
         await db
           .update(customers)
-          .set({ name: validated.customerName, updatedAt: new Date() })
+          .set(updates)
           .where(eq(customers.id, customerId));
       }
     } else {
@@ -261,7 +268,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
 
     const existingCustomer = validated.customerPhone && validated.customerPhone.trim()
       ? await db
-          .select({ id: customers.id, name: customers.name })
+          .select({ id: customers.id, name: customers.name, phone: customers.phone })
           .from(customers)
           .where(
             and(
@@ -271,7 +278,7 @@ export async function updateExpense(id: string, data: ExpenseInput) {
           )
           .limit(1)
       : await db
-          .select({ id: customers.id, name: customers.name })
+          .select({ id: customers.id, name: customers.name, phone: customers.phone })
           .from(customers)
           .where(
             and(
@@ -284,10 +291,17 @@ export async function updateExpense(id: string, data: ExpenseInput) {
     let customerId: string;
     if (existingCustomer.length > 0) {
       customerId = existingCustomer[0].id;
+      const updates: { name?: string; phone?: string; updatedAt: Date } = { updatedAt: new Date() };
       if (existingCustomer[0].name !== validated.customerName) {
+        updates.name = validated.customerName;
+      }
+      if (validated.customerPhone && validated.customerPhone.trim() && existingCustomer[0].phone !== validated.customerPhone.trim()) {
+        updates.phone = validated.customerPhone.trim();
+      }
+      if (Object.keys(updates).length > 1) {
         await db
           .update(customers)
-          .set({ name: validated.customerName, updatedAt: new Date() })
+          .set(updates)
           .where(eq(customers.id, customerId));
       }
     } else {
@@ -352,6 +366,29 @@ export async function deleteExpense(id: string) {
   } catch (error: unknown) {
     console.error("Failed to delete expense:", error);
     const message = error instanceof Error ? error.message : "Failed to delete expense";
+    return { error: message };
+  }
+}
+
+/**
+ * Permanently deletes ALL transactions belonging to the current user.
+ */
+export async function deleteAllExpenses() {
+  try {
+    const userId = await getRequiredUserId();
+
+    const deletedRows = await db
+      .delete(expenses)
+      .where(eq(expenses.userId, userId))
+      .returning({ id: expenses.id });
+
+    revalidatePath("/expenses");
+    revalidatePath("/customers");
+    revalidatePath("/dashboard");
+    return { success: true, deletedCount: deletedRows.length };
+  } catch (error: unknown) {
+    console.error("Failed to delete all expenses:", error);
+    const message = error instanceof Error ? error.message : "Failed to delete transactions.";
     return { error: message };
   }
 }

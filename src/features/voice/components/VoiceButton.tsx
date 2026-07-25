@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Mic, Globe, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import {
 } from "./VoiceTransactionDialog";
 import type { VoiceLanguageCode } from "../types";
 import { parseTransaction, type ParsedTransaction, type NlpLanguageCode } from "@/lib/nlp";
+import { getApprovedLearningRules } from "@/services/voice-learning-actions";
+import { getCategories } from "@/services/expense-actions";
 import {
   Dialog,
   DialogContent,
@@ -34,9 +36,23 @@ export function VoiceButton({
   className = "",
   variant = "default",
 }: VoiceButtonProps) {
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
   const [listeningModalOpen, setListeningModalOpen] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (categories && categories.length > 0) return;
+    getCategories()
+      .then((cats) => {
+        if (isMounted) setDbCategories(cats);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [categories]);
 
   // Parsed rule-based NLP data state for confirmation dialog
   const [parsedData, setParsedData] = useState<{
@@ -52,6 +68,8 @@ export function VoiceButton({
   const [lastTranscript, setLastTranscript] = useState<string>("");
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
 
+  const handleDoneSpeakingRef = useRef<() => void>(() => {});
+
   const {
     transcript,
     interimTranscript,
@@ -61,9 +79,18 @@ export function VoiceButton({
     language,
     start,
     stop,
+    abort,
     reset,
     changeLanguage,
-  } = useSpeechRecognition({ initialLanguage: "en-IN" });
+  } = useSpeechRecognition({
+    initialLanguage: "en-IN",
+    silenceTimeoutMs: 3000,
+    onSilenceTimeout: () => {
+      if (handleDoneSpeakingRef.current) {
+        handleDoneSpeakingRef.current();
+      }
+    },
+  });
 
   // Handle speech recognition errors via Sonner toasts
   useEffect(() => {
@@ -73,7 +100,7 @@ export function VoiceButton({
   }, [error]);
 
   const processTranscriptLocally = useCallback(
-    (textToProcess: string) => {
+    async (textToProcess: string) => {
       if (!textToProcess.trim()) {
         toast.error("No speech transcript detected. Please try again.");
         return;
@@ -88,9 +115,12 @@ export function VoiceButton({
       }
 
       try {
+        const learningRules = await getApprovedLearningRules(language);
+        const effectiveCategories = categories.length > 0 ? categories : dbCategories;
         const result: ParsedTransaction = parseTransaction(textToProcess, {
           language: language as NlpLanguageCode,
-          availableCategories: categories,
+          availableCategories: effectiveCategories,
+          learningRules,
         });
 
         setRawParsedResult(result);
@@ -118,8 +148,37 @@ export function VoiceButton({
         setIsParsing(false);
       }
     },
-    [categories, language]
+    [categories, dbCategories, language]
   );
+
+  const handleDoneSpeaking = useCallback(() => {
+    stop();
+    setListeningModalOpen(false);
+
+    const fullTranscript = (transcript + " " + interimTranscript).trim();
+
+    if (!fullTranscript) {
+      toast.error("No speech detected. Please try speaking again.");
+      return;
+    }
+
+    setLastTranscript(fullTranscript);
+    processTranscriptLocally(fullTranscript);
+  }, [interimTranscript, processTranscriptLocally, stop, transcript]);
+
+  useEffect(() => {
+    handleDoneSpeakingRef.current = handleDoneSpeaking;
+  }, [handleDoneSpeaking]);
+
+  const handleCancel = useCallback(() => {
+    abort();
+    setListeningModalOpen(false);
+    setLastTranscript("");
+    setIsParsing(false);
+    setHasFailed(false);
+    setParsedData(null);
+    setRawParsedResult(null);
+  }, [abort]);
 
   const handleStart = async () => {
     if (!isSupported) {
@@ -141,21 +200,6 @@ export function VoiceButton({
     setHasFailed(false);
     setListeningModalOpen(true);
     start();
-  };
-
-  const handleStop = () => {
-    stop();
-    setListeningModalOpen(false);
-
-    const fullTranscript = (transcript + " " + interimTranscript).trim();
-
-    if (!fullTranscript) {
-      toast.error("No speech detected. Please try speaking again.");
-      return;
-    }
-
-    setLastTranscript(fullTranscript);
-    processTranscriptLocally(fullTranscript);
   };
 
   const handleRetry = () => {
@@ -199,7 +243,7 @@ export function VoiceButton({
       {/* Voice Button */}
       <Button
         type="button"
-        onClick={isListening ? handleStop : handleStart}
+        onClick={isListening ? handleDoneSpeaking : handleStart}
         disabled={isParsing}
         variant={variant}
         aria-label={isListening ? "Stop listening to voice" : "Start voice expense input"}
@@ -238,7 +282,7 @@ export function VoiceButton({
       <Dialog
         open={listeningModalOpen}
         onOpenChange={(open) => {
-          if (!open) handleStop();
+          if (!open) handleCancel();
         }}
       >
         <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
@@ -254,7 +298,7 @@ export function VoiceButton({
 
           <ListeningIndicator
             transcript={(transcript + " " + interimTranscript).trim()}
-            onStop={handleStop}
+            onStop={handleDoneSpeaking}
             languageName={currentLanguageOption.label}
           />
         </DialogContent>

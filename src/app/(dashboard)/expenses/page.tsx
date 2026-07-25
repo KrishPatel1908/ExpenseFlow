@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLayoutLock } from "@/components/page-layout-lock";
 import { ExpenseForm } from "@/features/expenses/expense-form";
@@ -11,9 +11,8 @@ import { ExpensePagination } from "@/features/expenses/expense-pagination";
 import { ExpenseExportDropdown } from "@/features/expenses/expense-export-dropdown";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { useExpensesPage } from "@/features/expenses/use-expenses-page";
-import { deleteExpense } from "@/services/expense-actions";
+import { deleteExpense, deleteAllExpenses } from "@/services/expense-actions";
 import { VoiceButton } from "@/features/voice/components/VoiceButton";
-import type { VoiceConfirmationFormValues } from "@/features/voice/components/VoiceTransactionDialog";
 import { toast } from "sonner";
 
 const formatCurrency = (value: number | string) =>
@@ -63,6 +62,9 @@ export default function ExpensesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; customerName: string } | null>(null);
 
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
   const handleAddClick = () => {
     setEditingExpense(null);
     setPrefilledVoiceExpense(null);
@@ -80,19 +82,11 @@ export default function ExpensesPage() {
     setDeleteDialogOpen(true);
   };
 
-  // Called when Voice Module confirms extracted transaction data
-  const handleVoiceComplete = (voiceData: VoiceConfirmationFormValues) => {
+  // Called when Voice Module completes and creates transaction
+  const handleVoiceComplete = () => {
     setEditingExpense(null);
-    setPrefilledVoiceExpense({
-      customerName: voiceData.customer,
-      credit: voiceData.transactionType === "credit" ? String(voiceData.amount) : "0",
-      debit: voiceData.transactionType === "debit" ? String(voiceData.amount) : "0",
-      category: voiceData.category || "",
-      note: voiceData.description || "",
-      date: voiceData.date,
-    });
-    setIsFormOpen(true);
-    toast.info("Form populated with voice transaction details. Review and click Save.");
+    setPrefilledVoiceExpense(null);
+    loadData();
   };
 
   const confirmDelete = async () => {
@@ -113,6 +107,24 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleDeleteAllExpenses = async () => {
+    setIsDeletingAll(true);
+    try {
+      const res = await deleteAllExpenses();
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Successfully deleted ${res.deletedCount || totalCount} transactions.`);
+        loadData();
+      }
+    } catch {
+      toast.error("Failed to delete transactions.");
+    } finally {
+      setIsDeletingAll(false);
+      setDeleteAllConfirmOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 space-y-6 pb-2 sm:pb-0">
       <PageLayoutLock />
@@ -127,6 +139,18 @@ export default function ExpensesPage() {
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
           {/* Reusable Voice Button with Language Selector */}
           <VoiceButton onVoiceComplete={handleVoiceComplete} categories={dbCategories} />
+
+          {totalCount > 0 && (
+            <Button
+              type="button"
+              onClick={() => setDeleteAllConfirmOpen(true)}
+              variant="outline"
+              className="gap-1.5 font-semibold text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete All Records</span>
+            </Button>
+          )}
 
           <ExpenseExportDropdown
             expenses={expenses}
@@ -208,7 +232,7 @@ export default function ExpensesPage() {
         </>
       )}
 
-      {/* Confirmation Delete Dialog */}
+      {/* Confirmation Delete Single Dialog */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -217,6 +241,17 @@ export default function ExpensesPage() {
         description={`Are you sure you want to delete the transaction of "${expenseToDelete?.customerName}"? This action cannot be undone.`}
         confirmText="Delete"
         isSubmitting={false}
+      />
+
+      {/* Confirmation Delete All Dialog */}
+      <ConfirmDeleteDialog
+        open={deleteAllConfirmOpen}
+        onOpenChange={setDeleteAllConfirmOpen}
+        onConfirm={handleDeleteAllExpenses}
+        title="Delete All Transaction Records"
+        description={`Delete all ${totalCount} transaction records? This action cannot be undone.`}
+        confirmText="Delete All"
+        isSubmitting={isDeletingAll}
       />
 
       {/* Reusable Expense Form */}

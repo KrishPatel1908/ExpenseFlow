@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLayoutLock } from "@/components/page-layout-lock";
 import { CustomerTable } from "@/features/customers/customer-table";
@@ -15,6 +15,7 @@ import {
   createCustomer,
   updateCustomerProfile,
   deleteCustomerProfile,
+  deleteAllCustomers,
   type CustomerWithStats,
 } from "@/services/customer-actions";
 import { type CustomerInput } from "@/schemas/customer";
@@ -50,6 +51,9 @@ export default function CustomersPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<CustomerWithStats | null>(null);
+
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Debounce search query (500ms)
   useEffect(() => {
@@ -134,6 +138,24 @@ export default function CustomersPage() {
     }
   };
 
+  const handleDeleteAllCustomers = async () => {
+    setIsDeletingAll(true);
+    try {
+      const res = await deleteAllCustomers();
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Successfully deleted ${res.deletedCount || totalCount} customer profiles.`);
+        loadData();
+      }
+    } catch {
+      toast.error("Failed to delete customer profiles.");
+    } finally {
+      setIsDeletingAll(false);
+      setDeleteAllConfirmOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 space-y-6 pb-2 sm:pb-0">
       <PageLayoutLock />
@@ -148,6 +170,18 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          {totalCount > 0 && (
+            <Button
+              type="button"
+              onClick={() => setDeleteAllConfirmOpen(true)}
+              variant="outline"
+              className="gap-1.5 font-semibold text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete All Records</span>
+            </Button>
+          )}
+
           <CustomerExportDropdown
             customers={customers}
             filteredCustomers={customers}
@@ -228,7 +262,7 @@ export default function CustomersPage() {
         onSuccess={loadData}
       />
 
-      {/* Confirmation Delete Dialog */}
+      {/* Confirmation Single Delete Dialog */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -237,6 +271,17 @@ export default function CustomersPage() {
         description={`Are you sure you want to delete customer "${customerToDelete?.name}"? This action cannot be undone.`}
         confirmText="Delete Customer"
         isSubmitting={false}
+      />
+
+      {/* Confirmation Delete All Dialog */}
+      <ConfirmDeleteDialog
+        open={deleteAllConfirmOpen}
+        onOpenChange={setDeleteAllConfirmOpen}
+        onConfirm={handleDeleteAllCustomers}
+        title="Delete All Customer Records"
+        description={`Delete all ${totalCount} customer records? This action cannot be undone.`}
+        confirmText="Delete All"
+        isSubmitting={isDeletingAll}
       />
     </div>
   );

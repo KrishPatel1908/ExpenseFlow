@@ -69,6 +69,7 @@ export function VoiceButton({
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
 
   const handleDoneSpeakingRef = useRef<() => void>(() => {});
+  const hasProcessedRef = useRef<boolean>(false);
 
   const {
     transcript,
@@ -82,6 +83,7 @@ export function VoiceButton({
     abort,
     reset,
     changeLanguage,
+    getFinalOrInterimTranscript,
   } = useSpeechRecognition({
     initialLanguage: "en-IN",
     silenceTimeoutMs: 3000,
@@ -152,10 +154,13 @@ export function VoiceButton({
   );
 
   const handleDoneSpeaking = useCallback(() => {
+    if (hasProcessedRef.current) return;
+    hasProcessedRef.current = true;
+
     stop();
     setListeningModalOpen(false);
 
-    const fullTranscript = (transcript + " " + interimTranscript).trim();
+    const fullTranscript = getFinalOrInterimTranscript();
 
     if (!fullTranscript) {
       toast.error("No speech detected. Please try speaking again.");
@@ -164,13 +169,14 @@ export function VoiceButton({
 
     setLastTranscript(fullTranscript);
     processTranscriptLocally(fullTranscript);
-  }, [interimTranscript, processTranscriptLocally, stop, transcript]);
+  }, [getFinalOrInterimTranscript, processTranscriptLocally, stop]);
 
   useEffect(() => {
     handleDoneSpeakingRef.current = handleDoneSpeaking;
   }, [handleDoneSpeaking]);
 
   const handleCancel = useCallback(() => {
+    hasProcessedRef.current = true;
     abort();
     setListeningModalOpen(false);
     setLastTranscript("");
@@ -196,6 +202,7 @@ export function VoiceButton({
       return;
     }
 
+    hasProcessedRef.current = false;
     reset();
     setHasFailed(false);
     setListeningModalOpen(true);
@@ -297,7 +304,7 @@ export function VoiceButton({
           </DialogHeader>
 
           <ListeningIndicator
-            transcript={(transcript + " " + interimTranscript).trim()}
+            transcript={transcript ? (interimTranscript ? `${transcript} ${interimTranscript}` : transcript) : interimTranscript}
             onStop={handleDoneSpeaking}
             languageName={currentLanguageOption.label}
           />

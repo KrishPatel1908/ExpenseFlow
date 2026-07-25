@@ -1,10 +1,12 @@
 export type SpeechRecognitionStatus =
-  | "idle"
-  | "requesting-permission"
-  | "listening"
-  | "processing"
-  | "error"
-  | "unsupported";
+  | "IDLE"
+  | "REQUESTING_PERMISSION"
+  | "STARTING"
+  | "LISTENING"
+  | "STOPPING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "ERROR";
 
 export type VoiceLanguageCode = "en-IN" | "gu-IN";
 

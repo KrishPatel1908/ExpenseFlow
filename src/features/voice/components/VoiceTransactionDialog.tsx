@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -71,6 +71,9 @@ export function VoiceTransactionDialog({
   onCancel,
 }: VoiceTransactionDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // React state updates on the next render; this ref closes the small window in
+  // which a double click or duplicate submit event could create two expenses.
+  const submissionInFlightRef = useRef(false);
 
   // Format date helper (YYYY-MM-DD)
   const getDefaultDate = (dateVal?: string) => {
@@ -105,6 +108,7 @@ export function VoiceTransactionDialog({
   // Re-sync form default values when initialData changes or dialog opens
   useEffect(() => {
     if (isOpen && initialData) {
+      submissionInFlightRef.current = false;
       reset({
         customer: initialData.customer || "",
         customerPhone: initialData.customerPhone || "",
@@ -120,6 +124,8 @@ export function VoiceTransactionDialog({
   const currentType = watch("transactionType");
 
   const onSubmitForm = async (values: VoiceConfirmationFormValues) => {
+    if (submissionInFlightRef.current) return;
+    submissionInFlightRef.current = true;
     setIsSubmitting(true);
     try {
       // 1. Directly create the transaction reusing existing createExpense server action
@@ -218,6 +224,7 @@ export function VoiceTransactionDialog({
       console.error("Failed to create expense from voice dialog:", err);
       toast.error("Failed to create expense transaction. Please try again.");
     } finally {
+      submissionInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };

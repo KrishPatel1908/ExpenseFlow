@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Mic, Globe, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { requestMicrophoneAccess, SUPPORTED_VOICE_LANGUAGES } from "../utils/speech";
+import { SUPPORTED_VOICE_LANGUAGES } from "../utils/speech";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { ListeningIndicator } from "./ListeningIndicator";
 import {
@@ -81,9 +81,10 @@ export function VoiceButton({
     start,
     stop,
     abort,
-    reset,
     changeLanguage,
     getFinalOrInterimTranscript,
+    beginProcessing,
+    completeProcessing,
   } = useSpeechRecognition({
     initialLanguage: "en-IN",
     silenceTimeoutMs: 3000,
@@ -110,6 +111,7 @@ export function VoiceButton({
 
       setIsParsing(true);
       setHasFailed(false);
+      let parsedSuccessfully = false;
       const toastId = toast.loading("Parsing voice transcript...");
 
       if (process.env.NODE_ENV === "development") {
@@ -140,6 +142,7 @@ export function VoiceButton({
         toast.success("Voice transcript parsed successfully!", { id: toastId });
         setParsedData(initialFormValues);
         setConfirmationDialogOpen(true);
+        parsedSuccessfully = true;
       } catch (err: unknown) {
         setHasFailed(true);
         console.error("[Voice Module] Parsing error:", err);
@@ -148,9 +151,10 @@ export function VoiceButton({
         });
       } finally {
         setIsParsing(false);
+        completeProcessing(parsedSuccessfully);
       }
     },
-    [categories, dbCategories, language]
+    [categories, completeProcessing, dbCategories, language]
   );
 
   const handleDoneSpeaking = useCallback(() => {
@@ -159,17 +163,19 @@ export function VoiceButton({
 
     stop();
     setListeningModalOpen(false);
+    beginProcessing();
 
     const fullTranscript = getFinalOrInterimTranscript();
 
     if (!fullTranscript) {
       toast.error("No speech detected. Please try speaking again.");
+      completeProcessing(false);
       return;
     }
 
     setLastTranscript(fullTranscript);
     processTranscriptLocally(fullTranscript);
-  }, [getFinalOrInterimTranscript, processTranscriptLocally, stop]);
+  }, [beginProcessing, completeProcessing, getFinalOrInterimTranscript, processTranscriptLocally, stop]);
 
   useEffect(() => {
     handleDoneSpeakingRef.current = handleDoneSpeaking;
@@ -194,19 +200,10 @@ export function VoiceButton({
       return;
     }
 
-    const hasPermission = await requestMicrophoneAccess();
-    if (!hasPermission) {
-      toast.error(
-        "Microphone permission denied. Please allow microphone access in your browser settings."
-      );
-      return;
-    }
-
     hasProcessedRef.current = false;
-    reset();
     setHasFailed(false);
     setListeningModalOpen(true);
-    start();
+    await start();
   };
 
   const handleRetry = () => {
@@ -225,6 +222,9 @@ export function VoiceButton({
 
   const currentLanguageOption =
     SUPPORTED_VOICE_LANGUAGES.find((l) => l.code === language) || SUPPORTED_VOICE_LANGUAGES[0];
+  // A terminal recognition error must immediately release the listening UI even
+  // before the user starts another session.
+  const isListeningDialogOpen = listeningModalOpen && !error;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -254,7 +254,7 @@ export function VoiceButton({
         disabled={isParsing}
         variant={variant}
         aria-label={isListening ? "Stop listening to voice" : "Start voice expense input"}
-        aria-expanded={listeningModalOpen}
+        aria-expanded={isListeningDialogOpen}
         className={`relative flex items-center gap-2 cursor-pointer font-semibold transition-all ${
           isListening
             ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse shadow-md shadow-rose-500/20"
@@ -287,7 +287,7 @@ export function VoiceButton({
 
       {/* Active Listening Dialog */}
       <Dialog
-        open={listeningModalOpen}
+        open={isListeningDialogOpen}
         onOpenChange={(open) => {
           if (!open) handleCancel();
         }}
